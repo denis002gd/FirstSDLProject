@@ -191,10 +191,10 @@ void initUIElements(UIElements *ui) {
   ui->upgradeButton = (SDL_Rect){400, 600, 200, 100};
 
   // Colors
-  ui->backgroundColor = (SDL_Color){30, 30, 30, 255};
-  ui->clickButtonColor = (SDL_Color){200, 0, 0, 255};
-  ui->upgradeButtonColor = (SDL_Color){0, 200, 0, 255};
-  ui->textColor = (SDL_Color){255, 255, 255, 255};
+  ui->backgroundColor = (SDL_Color){20, 20, 40, 255};
+  ui->clickButtonColor = (SDL_Color){255, 0, 110, 255};
+  ui->upgradeButtonColor = (SDL_Color){0, 255, 100, 255};
+  ui->textColor = (SDL_Color){255, 240, 255, 255};
 }
 
 void handleEvents(bool *running, Resources *res, GameState *state,
@@ -268,6 +268,9 @@ void render(Resources *res, GameState *state, UIElements *ui) {
   char clickText[64];
   snprintf(clickText, sizeof(clickText), "Click Value: %d", state->clickAmount);
   renderText(res->renderer, res->font, clickText, ui->textColor, 20, 70);
+  char mainButton[64];
+  snprintf(mainButton, sizeof(mainButton), "Click!");
+  renderText(res->renderer, res->font, mainButton, ui->textColor, 450, 450);
 
   // Render upgrade info
   char upgradeText[128];
