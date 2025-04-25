@@ -4,6 +4,7 @@
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_ttf.h>
 #include <math.h>
 #include <stdbool.h>
@@ -13,14 +14,15 @@
 #define WINDOW_WIDTH 1000
 #define WINDOW_HEIGHT 1000
 #define FRAME_DELAY 16
-#define AUTO_CLICK_INTERVAL 1000
 #define SHAKE_DURATION 200
 #define SHAKE_INTENSITY 10
 
 typedef struct {
   int score;
   int clickAmount;
+  int cpsLevel;
   Uint32 lastAutoClickTime;
+  Uint32 clickInterval;
 
   bool isRockHovered;
   bool isRockClicked;
@@ -51,6 +53,7 @@ typedef struct {
   SDL_Window *window;
   SDL_Renderer *renderer;
   TTF_Font *font;
+  TTF_Font *smallFont;
   Mix_Chunk *clickSound;
 } Resources;
 
@@ -59,6 +62,8 @@ void cleanup(Resources *res, UIElements *ui);
 bool isInsideRect(const SDL_Rect *rect, int x, int y);
 void renderText(SDL_Renderer *renderer, TTF_Font *font, const char *text,
                 SDL_Color color, int x, int y);
+void renderCenteredText(SDL_Renderer *renderer, TTF_Font *font,
+                        const char *text, SDL_Color color, SDL_Rect container);
 void handleEvents(bool *running, Resources *res, GameState *state,
                   UIElements *ui);
 void update(GameState *state, UIElements *ui);
@@ -67,6 +72,7 @@ void initGameState(GameState *state);
 void initUIElements(UIElements *ui);
 void LoadImages(UIElements *ui, Resources *res);
 bool loadData(GameState *gameState);
+bool saveData(GameState *gameState);
 
 int main() {
   Resources res = {0};
@@ -90,6 +96,7 @@ int main() {
     SDL_Delay(FRAME_DELAY);
   }
 
+  saveData(&state);
   cleanup(&res, &ui);
   return 0;
 }
@@ -97,20 +104,25 @@ int main() {
 bool saveData(GameState *gameState) {
   FILE *fl = fopen("data.txt", "w");
   if (!fl) {
-    return true;
+    return false;
   }
   fprintf(fl, "Score:%d\n", gameState->score);
-  fprintf(fl, "TotalClicks:%d", gameState->clickAmount);
+  fprintf(fl, "TotalClicks:%d\n", gameState->clickAmount);
+  fprintf(fl, "CPSLevel:%d\n", gameState->cpsLevel);
+  fprintf(fl, "ClickInterval:%d", gameState->clickInterval);
   fclose(fl);
-  return false;
+  return true;
 }
+
 bool loadData(GameState *gameState) {
   FILE *fl = fopen("data.txt", "r");
   if (!fl) {
-    return true;
+    return false;
   }
   int score = 0;
   int clicks = 0;
+  int cpsLevel = 1;
+  Uint32 interval = 1000;
   char text[100];
   while (fgets(text, sizeof(text), fl)) {
     if (sscanf(text, "Score:%d", &score) == 1) {
@@ -119,10 +131,17 @@ bool loadData(GameState *gameState) {
     if (sscanf(text, "TotalClicks:%d", &clicks) == 1) {
       gameState->clickAmount = clicks;
     }
+    if (sscanf(text, "CPSLevel:%d", &cpsLevel) == 1) {
+      gameState->cpsLevel = cpsLevel;
+    }
+    if (sscanf(text, "ClickInterval:%d", &interval) == 1) {
+      gameState->clickInterval = interval;
+    }
   }
   fclose(fl);
-  return false;
+  return true;
 }
+
 bool initialize(Resources *res) {
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
     printf("SDL could not initialize! SDL Error: %s\n", SDL_GetError());
@@ -159,9 +178,16 @@ bool initialize(Resources *res) {
   }
 
   res->font =
-      TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32);
+      TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28);
   if (!res->font) {
     printf("Failed to load font: %s\n", TTF_GetError());
+    return false;
+  }
+
+  res->smallFont =
+      TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24);
+  if (!res->smallFont) {
+    printf("Failed to load small font: %s\n", TTF_GetError());
     return false;
   }
 
@@ -177,6 +203,8 @@ bool initialize(Resources *res) {
 void cleanup(Resources *res, UIElements *ui) {
   if (res->font)
     TTF_CloseFont(res->font);
+  if (res->smallFont)
+    TTF_CloseFont(res->smallFont);
   if (res->clickSound)
     Mix_FreeChunk(res->clickSound);
   if (res->renderer)
@@ -234,10 +262,42 @@ void renderText(SDL_Renderer *renderer, TTF_Font *font, const char *text,
   SDL_DestroyTexture(texture);
 }
 
+void renderCenteredText(SDL_Renderer *renderer, TTF_Font *font,
+                        const char *text, SDL_Color color, SDL_Rect container) {
+  if (!text || !font)
+    return;
+
+  SDL_Surface *surface = TTF_RenderText_Solid(font, text, color);
+  if (!surface) {
+    printf("Unable to render text surface! SDL_ttf Error: %s\n",
+           TTF_GetError());
+    return;
+  }
+
+  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+  if (!texture) {
+    printf("Unable to create texture from rendered text! SDL Error: %s\n",
+           SDL_GetError());
+    SDL_FreeSurface(surface);
+    return;
+  }
+
+  SDL_Rect dst = {container.x + (container.w - surface->w) / 2,
+                  container.y + (container.h - surface->h) / 2, surface->w,
+                  surface->h};
+  dst.y -= 20;
+  SDL_RenderCopy(renderer, texture, NULL, &dst);
+
+  SDL_FreeSurface(surface);
+  SDL_DestroyTexture(texture);
+}
+
 void initGameState(GameState *state) {
   state->score = 0;
   state->clickAmount = 1;
+  state->cpsLevel = 1;
   state->lastAutoClickTime = SDL_GetTicks();
+  state->clickInterval = 1000;
   state->isRockHovered = false;
   state->isRockClicked = false;
   state->rockClickTime = 0;
@@ -297,11 +357,20 @@ void handleEvents(bool *running, Resources *res, GameState *state,
         }
       }
 
-      int upgradeCost = state->clickAmount * 10;
-      if (isInsideRect(&ui->upgradeButton, mx, my) &&
-          state->score >= upgradeCost) {
-        state->score -= upgradeCost;
+      int clickUpgradeCost = state->clickAmount * state->clickAmount;
+      if (isInsideRect(&ui->clickBut, mx, my) &&
+          state->score >= clickUpgradeCost) {
+        state->score -= clickUpgradeCost;
         state->clickAmount++;
+      }
+
+      int cpsUpgradeCost = state->cpsLevel * state->cpsLevel * 100;
+      if (isInsideRect(&ui->cpsBut, mx, my) && state->score >= cpsUpgradeCost) {
+        state->score -= cpsUpgradeCost;
+        state->cpsLevel++;
+        state->clickInterval = (state->clickInterval > 50)
+                                   ? state->clickInterval / 2
+                                   : state->clickInterval;
       }
       break;
     }
@@ -323,10 +392,10 @@ void handleEvents(bool *running, Resources *res, GameState *state,
     }
   }
 }
-// autoclick
+
 void update(GameState *state, UIElements *ui) {
   Uint32 currentTime = SDL_GetTicks();
-  if (currentTime - state->lastAutoClickTime >= AUTO_CLICK_INTERVAL) {
+  if (currentTime - state->lastAutoClickTime >= state->clickInterval) {
     state->score++;
     state->lastAutoClickTime = currentTime;
   }
@@ -353,7 +422,7 @@ void render(Resources *res, GameState *state, UIElements *ui) {
   } else {
     rockRect = ui->rockNormalRect;
   }
-  // shake effect
+
   if (state->isShaking) {
     Uint32 elapsedTime = SDL_GetTicks() - state->rockClickTime;
     float shake_progress = (float)elapsedTime / SHAKE_DURATION;
@@ -366,34 +435,42 @@ void render(Resources *res, GameState *state, UIElements *ui) {
     rockRect.x += (int)shake_x;
     rockRect.y += (int)shake_y;
   }
+
   SDL_RenderCopy(res->renderer, ui->background, NULL, NULL);
   SDL_RenderCopy(res->renderer, ui->rock, NULL, &rockRect);
   SDL_RenderCopy(res->renderer, ui->clickUpgrade, NULL, &ui->clickBut);
   SDL_RenderCopy(res->renderer, ui->CPSUpgrade, NULL, &ui->cpsBut);
 
-  // SDL_SetRenderDrawColor(res->renderer, ui->upgradeButtonColor.r,
-  //                       ui->upgradeButtonColor.g, ui->upgradeButtonColor.b,
-  //                       255);
-  // SDL_RenderFillRect(res->renderer, &ui->upgradeButton);
-
   char scoreText[64];
   snprintf(scoreText, sizeof(scoreText), "Score: %d", state->score);
-  renderText(res->renderer, res->font, scoreText, ui->textColor, 20, 20);
+  renderText(res->renderer, res->smallFont, scoreText, ui->textColor, 20, 75);
 
   char clickText[64];
   snprintf(clickText, sizeof(clickText), "Click Value: %d", state->clickAmount);
-  renderText(res->renderer, res->font, clickText, ui->textColor, 20, 70);
+  renderText(res->renderer, res->smallFont, clickText, ui->textColor, 20, 10);
 
-  // char upgradeText[128];
-  // snprintf(upgradeText, sizeof(upgradeText), "Upgrade Cost: %d",
-  //        state->clickAmount * 10);
-  // renderText(res->renderer, res->font, upgradeText, ui->textColor, 20,
-  //            WINDOW_HEIGHT - 60);
+  char cpsText[64];
+  snprintf(cpsText, sizeof(cpsText), "CPS: %.1f",
+           1000.0f / state->clickInterval);
+  renderText(res->renderer, res->smallFont, cpsText, ui->textColor, 20, 45);
 
-  renderText(res->renderer, res->font, "+1 click", ui->textColor, 400, 550);
+  char saveInstructions[64] = "press S to save";
+  renderText(res->renderer, res->smallFont, saveInstructions, ui->textColor,
+             750, 950);
 
-  renderText(res->renderer, res->font, "+1 CPS", ui->textColor, 400, 680);
+  char clickUpgradeText[64];
+  int clickUpgradeCost = state->clickAmount * state->clickAmount;
+  snprintf(clickUpgradeText, sizeof(clickUpgradeText), "+1 Click: %d",
+           clickUpgradeCost);
+  renderCenteredText(res->renderer, res->smallFont, clickUpgradeText,
+                     ui->textColor, ui->clickBut);
 
-  // update la screen
+  char cpsUpgradeText[64];
+  int cpsUpgradeCost = state->cpsLevel * state->cpsLevel * 100;
+  snprintf(cpsUpgradeText, sizeof(cpsUpgradeText), "2x CPS: %d",
+           cpsUpgradeCost);
+  renderCenteredText(res->renderer, res->smallFont, cpsUpgradeText,
+                     ui->textColor, ui->cpsBut);
+
   SDL_RenderPresent(res->renderer);
 }

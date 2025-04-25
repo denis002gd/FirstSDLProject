@@ -1,2 +1,4 @@
-Score:0
+Score:468
 TotalClicks:0
+CPSLevel:3
+ClickInterval:0
