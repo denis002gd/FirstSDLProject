@@ -1,0 +1,4 @@
+Score:0
+TotalClicks:1
+CPSLevel:0
+ClickInterval:10000
