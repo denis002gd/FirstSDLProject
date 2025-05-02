@@ -53,6 +53,7 @@ int Initializare(struct Game *game) {
     return 0;
   }
   game->sound = Mix_LoadWAV("sounds/pong.mp3");
+
   game->susSound = Mix_LoadWAV("sounds/amogsus.mp3");
 
   int init_img = IMG_Init(IMG_INIT_PNG);

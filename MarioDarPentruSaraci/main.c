@@ -1,7 +1,9 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_error.h>
+#include <SDL2/SDL_events.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_scancode.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_video.h>
 #include <stdbool.h>
@@ -37,6 +39,11 @@ typedef struct Player {
   SDL_Texture *player;
   int x;
   int y;
+  int width;
+  int height;
+  int vel_x;
+  int vel_y;
+  bool isGrounded;
 } player_t;
 
 struct Resources {
@@ -44,6 +51,7 @@ struct Resources {
   SDL_Renderer *renderer;
   SDL_Texture *background;
   SDL_Rect backgroundRect;
+  player_t *player;
 };
 
 bool Initialization(struct Resources *res);
@@ -58,13 +66,17 @@ int main() {
       .renderer = NULL,
       .background = NULL,
       .backgroundRect = {0, 0, LENGTH, HEIGHT},
+      .player = NULL,
   };
 
   Objects obj = {
       .groundTile = NULL,
       .brickTile = NULL,
   };
-
+  player_t player = {
+      .player = NULL,
+  };
+  res.player = &player;
   if (!Initialization(&res)) {
     TerminateProgram(&res);
     return 1;
@@ -91,14 +103,11 @@ int main() {
       }
     }
 
-    // Clear and render background
     SDL_RenderClear(res.renderer);
     SDL_RenderCopy(res.renderer, res.background, NULL, NULL);
 
-    // Render map tiles
     RenderMap(&res, &obj);
 
-    // Present the rendered frame
     SDL_RenderPresent(res.renderer);
     SDL_Delay(16);
   }
