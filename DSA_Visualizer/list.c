@@ -44,3 +44,7 @@ void Deallocate(List *list) {
   list->Head = NULL;
   printf("List was freed\n");
 }
+
+int IsInsideBox(int x, int y, int w, int h, int x1, int y1) {
+  return (x1 >= x && x1 <= x + w && y1 >= y && y1 <= y + h);
+}

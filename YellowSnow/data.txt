@@ -1,4 +1,4 @@
-Score:156
-TotalClicks:6
-CPSLevel:2
-ClickInterval:2500
+Score:6
+TotalClicks:1
+CPSLevel:0
+ClickInterval:10000

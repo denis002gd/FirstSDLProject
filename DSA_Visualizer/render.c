@@ -33,13 +33,18 @@ int InitProgram(Res *resources) {
   return 0;
 }
 
-int InitButton(Res *resources, struct Button *button, char *path) {
+int InitButton(Res *resources, struct Button *button, char *path,
+               char *secondPath) {
 
   button->background = IMG_LoadTexture(resources->renderer, path);
 
   if (!button->background) {
     fprintf(stderr, "Failed at creating button, Error: %s\n", SDL_GetError());
     return 1;
+  }
+  button->selectedBG = IMG_LoadTexture(resources->renderer, secondPath);
+  if (!button->selectedBG) {
+    printf("Second path not assigned!\n");
   }
   // return 0 on success
   return 0;
@@ -52,6 +57,8 @@ void DrawButton(Res *resources, struct Button *button) {
 void CleanUpButton(struct Button *button) {
   if (button->background)
     SDL_DestroyTexture(button->background);
+  if (button->selectedBG)
+    SDL_DestroyTexture(button->selectedBG);
 }
 void CleanupProgram(Res *resources) {
   SDL_DestroyRenderer(resources->renderer);
