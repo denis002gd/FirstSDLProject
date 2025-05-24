@@ -4,13 +4,14 @@
 #include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 bool running = true;
-
+//"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 int main(void) {
 
   Res resources = {
@@ -22,18 +23,39 @@ int main(void) {
   InitProgram(&resources);
   // List *list = (List *)malloc(sizeof(List));
   // InitList(list);
-  struct Button TestButton = {.background = NULL,
-                              .position = {10, 5, 200, 150}};
-  struct Button TestButton2 = {.background = NULL,
-                               .position = {220, 5, 200, 150}};
+  int numOfButtons = 3;
+  struct Button Buttons[numOfButtons];
+  char font[52] = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
 
+  struct Button TestButton = {.background = NULL,
+                              .isCLicked = 0,
+                              .position = {10, 5, 200, 150},
+                              .textColor = {0, 0, 0, 255}};
+  struct Button TestButton2 = {.background = NULL,
+                               .isCLicked = 0,
+                               .position = {220, 5, 200, 150},
+                               .textColor = {50, 50, 50, 255}};
+  struct Button TestButton3 = {.background = NULL,
+                               .isCLicked = 0,
+                               .position = {430, 5, 200, 150},
+                               .textColor = {100, 100, 100, 255}};
   InitButton(&resources, &TestButton, "textures/buttonReady.png",
              "textures/button.png");
+  InitButtonText(&resources, &TestButton, "Button 1", 24, font);
   InitButton(&resources, &TestButton2, "textures/buttonReady.png",
              "textures/button.png");
 
+  InitButtonText(&resources, &TestButton2, "Button 2", 24, font);
+  InitButton(&resources, &TestButton3, "textures/buttonReady.png",
+             "textures/button.png");
+
+  InitButtonText(&resources, &TestButton3, "Button 3", 24, font);
+
+  Buttons[0] = TestButton;
+  Buttons[1] = TestButton2;
+  Buttons[2] = TestButton3;
+
   int mouseX, mouseY;
-  int onText;
   // main state loop
   while (running) {
     SDL_Event event;
@@ -44,19 +66,32 @@ int main(void) {
         running = false;
         break;
       case SDL_MOUSEBUTTONDOWN:
-        if (IsInsideBox(TestButton.position.x, TestButton.position.y,
-                        TestButton.position.w, TestButton.position.h, mouseX,
+        if (IsInsideBox(Buttons[0].position.x, Buttons[0].position.y,
+                        Buttons[0].position.w, Buttons[0].position.h, mouseX,
                         mouseY)) {
           printf("First button was clicked!\n");
-          onText = true;
+          Buttons[0].isCLicked = 1;
 
         } else {
-          onText = false;
+          Buttons[0].isCLicked = 0;
         }
-        if (IsInsideBox(TestButton2.position.x, TestButton2.position.y,
-                        TestButton2.position.w, TestButton2.position.h, mouseX,
+        if (IsInsideBox(Buttons[1].position.x, Buttons[1].position.y,
+                        Buttons[1].position.w, Buttons[1].position.h, mouseX,
                         mouseY)) {
-          printf("Second button was 4 clicked\n");
+          printf("Second button was clicked!\n");
+          Buttons[1].isCLicked = 1;
+
+        } else {
+          Buttons[1].isCLicked = 0;
+        }
+        if (IsInsideBox(Buttons[2].position.x, Buttons[2].position.y,
+                        Buttons[2].position.w, Buttons[2].position.h, mouseX,
+                        mouseY)) {
+          printf("Third button was clicked!\n");
+          Buttons[2].isCLicked = 1;
+
+        } else {
+          Buttons[2].isCLicked = 0;
         }
         break;
       default:
@@ -64,15 +99,10 @@ int main(void) {
       }
     }
     SDL_SetRenderDrawColor(resources.renderer, 253, 240, 213, 0);
-    if (!onText) {
-      SDL_RenderCopy(resources.renderer, TestButton.background, 0,
-                     &TestButton.position);
-    } else {
-      SDL_RenderCopy(resources.renderer, TestButton.selectedBG, 0,
-                     &TestButton.position);
+
+    for (int i = 0; i < numOfButtons; i++) {
+      DrawButton(&resources, &Buttons[i]);
     }
-    SDL_RenderCopy(resources.renderer, TestButton2.background, 0,
-                   &TestButton2.position);
     SDL_RenderPresent(resources.renderer);
     SDL_RenderClear(resources.renderer);
 

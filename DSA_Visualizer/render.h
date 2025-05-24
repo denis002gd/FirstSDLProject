@@ -1,6 +1,8 @@
 #ifndef RENDER_H
 #define RENDER_H
+#include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_ttf.h>
 #define HEIGHT 700
 #define WIDTH 900
 #define REFRESHRATE 16
@@ -18,13 +20,22 @@ typedef struct Resources {
 struct Button {
   SDL_Texture *background;
   SDL_Texture *selectedBG;
+  int isCLicked; // 0 false 1 true
   SDL_Rect position;
+
+  SDL_Color textColor;
+  char text[32]; // might increase size later
+  TTF_Font *font;
+  SDL_Texture *textTexture;
+  SDL_Rect textRect;
 };
 
 int InitProgram(Res *resources);
 int InitButton(Res *resources, struct Button *button, char *path,
                char *secondPath);
 void DrawButton(Res *resources, struct Button *button);
+void InitButtonText(Res *res, struct Button *button, char *text, int textSize,
+                    char *font);
 void CleanUpButton(struct Button *button);
 void CleanupProgram(Res *resources);
 

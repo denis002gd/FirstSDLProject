@@ -2,7 +2,10 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_error.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_video.h>
 #include <stdio.h>
 
@@ -11,6 +14,7 @@ int InitProgram(Res *resources) {
     fprintf(stderr, "Error at initialization, Error: %s\n", SDL_GetError());
     return 1;
   }
+  TTF_Init();
   if (IMG_Init(IMG_INIT_PNG) == 0) {
     fprintf(stderr, "Error on image initialization, Error: %s", IMG_GetError());
     return 1;
@@ -50,8 +54,49 @@ int InitButton(Res *resources, struct Button *button, char *path,
   return 0;
 }
 
+void InitButtonText(Res *res, struct Button *button, char *text, int textSize,
+                    char *font) {
+  button->font = TTF_OpenFont(font, textSize);
+  if (!button->font) {
+    fprintf(stderr, "Failed to open font. Error Log: %s\n", TTF_GetError());
+    return;
+  }
+
+  SDL_Surface *surface =
+      TTF_RenderText_Solid(button->font, text, button->textColor);
+  if (!surface) {
+    fprintf(stderr, "Failed to create text surface: %s\n", TTF_GetError());
+    return;
+  }
+
+  button->textTexture = SDL_CreateTextureFromSurface(res->renderer, surface);
+  if (!button->textTexture) {
+    fprintf(stderr, "Failed to create text texture: %s\n", SDL_GetError());
+    SDL_FreeSurface(surface);
+    return;
+  }
+
+  button->textRect.w = surface->w;
+  button->textRect.h = surface->h;
+  button->textRect.x =
+      button->position.x + (button->position.w - surface->w) / 2;
+  button->textRect.y =
+      button->position.y + ((button->position.h - surface->h) / 2) - 10;
+
+  SDL_FreeSurface(surface);
+}
+
 void DrawButton(Res *resources, struct Button *button) {
-  SDL_RenderCopy(resources->renderer, button->background, 0, &button->position);
+  if (!button->isCLicked) {
+    SDL_RenderCopy(resources->renderer, button->background, 0,
+                   &button->position);
+  } else {
+
+    SDL_RenderCopy(resources->renderer, button->selectedBG, 0,
+                   &button->position);
+  }
+  SDL_RenderCopy(resources->renderer, button->textTexture, 0,
+                 &button->textRect);
 }
 
 void CleanUpButton(struct Button *button) {
@@ -59,9 +104,17 @@ void CleanUpButton(struct Button *button) {
     SDL_DestroyTexture(button->background);
   if (button->selectedBG)
     SDL_DestroyTexture(button->selectedBG);
+  if (button->font) {
+    TTF_CloseFont(button->font);
+  }
+  if (button->textTexture) {
+    SDL_DestroyTexture(button->textTexture);
+  }
 }
 void CleanupProgram(Res *resources) {
   SDL_DestroyRenderer(resources->renderer);
   SDL_DestroyWindow(resources->window);
+  IMG_Quit();
+  TTF_Quit();
   SDL_Quit();
 }

@@ -5,7 +5,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g `sdl2-config --cflags`
 
 # SDL2 Libraries
-LDFLAGS = `sdl2-config --libs` -lSDL2_image
+LDFLAGS = `sdl2-config --libs` -lSDL2_image -lSDL2_ttf
 
 # Source files
 SRCS = main.c list.c render.c
