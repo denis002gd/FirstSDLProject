@@ -61,7 +61,7 @@ void InitButtonText(Res *res, struct Button *button, char *text, int textSize,
     fprintf(stderr, "Failed to open font. Error Log: %s\n", TTF_GetError());
     return;
   }
-
+  button->text = strdup(text);
   SDL_Surface *surface =
       TTF_RenderText_Solid(button->font, text, button->textColor);
   if (!surface) {
@@ -109,6 +109,9 @@ void CleanUpButton(struct Button *button) {
   }
   if (button->textTexture) {
     SDL_DestroyTexture(button->textTexture);
+  }
+  if (button->text) {
+    free(button->text);
   }
 }
 void CleanupProgram(Res *resources) {

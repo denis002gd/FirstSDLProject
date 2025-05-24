@@ -34,22 +34,22 @@ int main(void) {
   struct Button TestButton2 = {.background = NULL,
                                .isCLicked = 0,
                                .position = {220, 5, 200, 150},
-                               .textColor = {50, 50, 50, 255}};
+                               .textColor = {0, 0, 0, 255}};
   struct Button TestButton3 = {.background = NULL,
                                .isCLicked = 0,
                                .position = {430, 5, 200, 150},
-                               .textColor = {100, 100, 100, 255}};
+                               .textColor = {0, 0, 0, 255}};
   InitButton(&resources, &TestButton, "textures/buttonReady.png",
              "textures/button.png");
-  InitButtonText(&resources, &TestButton, "Button 1", 24, font);
+  InitButtonText(&resources, &TestButton, "Linked List", 22, font);
   InitButton(&resources, &TestButton2, "textures/buttonReady.png",
              "textures/button.png");
 
-  InitButtonText(&resources, &TestButton2, "Button 2", 24, font);
+  InitButtonText(&resources, &TestButton2, "Stack", 30, font);
   InitButton(&resources, &TestButton3, "textures/buttonReady.png",
              "textures/button.png");
 
-  InitButtonText(&resources, &TestButton3, "Button 3", 24, font);
+  InitButtonText(&resources, &TestButton3, "Queue", 29, font);
 
   Buttons[0] = TestButton;
   Buttons[1] = TestButton2;
@@ -66,32 +66,16 @@ int main(void) {
         running = false;
         break;
       case SDL_MOUSEBUTTONDOWN:
-        if (IsInsideBox(Buttons[0].position.x, Buttons[0].position.y,
-                        Buttons[0].position.w, Buttons[0].position.h, mouseX,
-                        mouseY)) {
-          printf("First button was clicked!\n");
-          Buttons[0].isCLicked = 1;
+        for (int i = 0; i < numOfButtons; i++) {
+          if (IsInsideBox(Buttons[i].position.x, Buttons[i].position.y,
+                          Buttons[i].position.w, Buttons[i].position.h, mouseX,
+                          mouseY)) {
+            printf("%s button was clicked!\n", Buttons[i].text);
+            Buttons[i].isCLicked = 1;
 
-        } else {
-          Buttons[0].isCLicked = 0;
-        }
-        if (IsInsideBox(Buttons[1].position.x, Buttons[1].position.y,
-                        Buttons[1].position.w, Buttons[1].position.h, mouseX,
-                        mouseY)) {
-          printf("Second button was clicked!\n");
-          Buttons[1].isCLicked = 1;
-
-        } else {
-          Buttons[1].isCLicked = 0;
-        }
-        if (IsInsideBox(Buttons[2].position.x, Buttons[2].position.y,
-                        Buttons[2].position.w, Buttons[2].position.h, mouseX,
-                        mouseY)) {
-          printf("Third button was clicked!\n");
-          Buttons[2].isCLicked = 1;
-
-        } else {
-          Buttons[2].isCLicked = 0;
+          } else {
+            Buttons[i].isCLicked = 0;
+          }
         }
         break;
       default:
@@ -100,18 +84,20 @@ int main(void) {
     }
     SDL_SetRenderDrawColor(resources.renderer, 253, 240, 213, 0);
 
+    SDL_RenderClear(resources.renderer);
     for (int i = 0; i < numOfButtons; i++) {
       DrawButton(&resources, &Buttons[i]);
     }
     SDL_RenderPresent(resources.renderer);
-    SDL_RenderClear(resources.renderer);
 
     SDL_Delay(REFRESHRATE);
   }
   // PrintSimpleList(list);
 
   // Deallocate(list);
-  CleanUpButton(&TestButton);
+  for (int i = 0; i < numOfButtons; i++) {
+    CleanUpButton(&Buttons[i]);
+  }
   CleanupProgram(&resources);
   return 0;
 }

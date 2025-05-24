@@ -24,12 +24,15 @@ struct Button {
   SDL_Rect position;
 
   SDL_Color textColor;
-  char text[32]; // might increase size later
+  char *text;
   TTF_Font *font;
   SDL_Texture *textTexture;
   SDL_Rect textRect;
 };
-
+struct Panel {
+  SDL_Texture *background;
+  SDL_Rect position;
+};
 int InitProgram(Res *resources);
 int InitButton(Res *resources, struct Button *button, char *path,
                char *secondPath);
