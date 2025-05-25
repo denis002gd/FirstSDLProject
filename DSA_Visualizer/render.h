@@ -36,6 +36,7 @@ struct Panel {
   SDL_Texture *background;
   SDL_Rect position;
   int isActive;
+  int panelIndex;
   int buttonsCount;
   struct Button buttons[];
 };
