@@ -3,6 +3,7 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_scancode.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
@@ -25,56 +26,49 @@ int main(void) {
   // InitList(list);
   int numOfButtons = 3;
   struct Button Buttons[numOfButtons];
-  char font[52] = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+  const char *buttonTexts[] = {"Linked List", "Stack", "Queue"};
+  const int fontSizes[] = {22, 30, 29};
 
-  struct Button TestButton = {.background = NULL,
-                              .isCLicked = 0,
-                              .position = {10, 5, 200, 150},
-                              .textColor = {0, 0, 0, 255}};
-  struct Button TestButton2 = {.background = NULL,
-                               .isCLicked = 0,
-                               .position = {220, 5, 200, 150},
-                               .textColor = {0, 0, 0, 255}};
-  struct Button TestButton3 = {.background = NULL,
-                               .isCLicked = 0,
-                               .position = {430, 5, 200, 150},
-                               .textColor = {0, 0, 0, 255}};
-  InitButton(&resources, &TestButton, "textures/buttonReady.png",
-             "textures/button.png");
-  InitButtonText(&resources, &TestButton, "Linked List", 22, font);
-  InitButton(&resources, &TestButton2, "textures/buttonReady.png",
-             "textures/button.png");
-
-  InitButtonText(&resources, &TestButton2, "Stack", 30, font);
-  InitButton(&resources, &TestButton3, "textures/buttonReady.png",
-             "textures/button.png");
-
-  InitButtonText(&resources, &TestButton3, "Queue", 29, font);
-
-  Buttons[0] = TestButton;
-  Buttons[1] = TestButton2;
-  Buttons[2] = TestButton3;
+  struct Panel *listPanel = malloc(sizeof(struct Panel));
+  InitPanel(&resources, listPanel);
+  listPanel->isActive = 1;
+  for (int i = 0; i < numOfButtons; i++) {
+    Buttons[i] = (struct Button){
+        .background = NULL,
+        .isCLicked = 0,
+        .isActive = 1,
+        .position = {10 + i * (BUTTON_SPACING + BUTTON_WIDTH), 5, BUTTON_WIDTH,
+                     BUTTON_HEIGHT},
+        .textColor = {0, 0, 0, 255},
+    };
+    InitButton(&resources, &Buttons[i], "textures/buttonReady.png",
+               "textures/button.png");
+    InitButtonText(&resources, &Buttons[i], buttonTexts[i], fontSizes[i],
+                   FONT_PATH);
+  }
 
   int mouseX, mouseY;
   // main state loop
   while (running) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-      SDL_GetMouseState(&mouseX, &mouseY);
       switch (event.type) {
       case (SDL_QUIT):
         running = false;
         break;
       case SDL_MOUSEBUTTONDOWN:
+        SDL_GetMouseState(&mouseX, &mouseY);
         for (int i = 0; i < numOfButtons; i++) {
-          if (IsInsideBox(Buttons[i].position.x, Buttons[i].position.y,
-                          Buttons[i].position.w, Buttons[i].position.h, mouseX,
-                          mouseY)) {
-            printf("%s button was clicked!\n", Buttons[i].text);
-            Buttons[i].isCLicked = 1;
+          if (Buttons[i].isActive == 1) {
+            if (IsInsideBox(Buttons[i].position.x, Buttons[i].position.y,
+                            Buttons[i].position.w, Buttons[i].position.h,
+                            mouseX, mouseY)) {
+              printf("%s button was clicked!\n", Buttons[i].text);
+              Buttons[i].isCLicked = 1;
 
-          } else {
-            Buttons[i].isCLicked = 0;
+            } else {
+              Buttons[i].isCLicked = 0;
+            }
           }
         }
         break;
@@ -86,7 +80,14 @@ int main(void) {
 
     SDL_RenderClear(resources.renderer);
     for (int i = 0; i < numOfButtons; i++) {
-      DrawButton(&resources, &Buttons[i]);
+      if (Buttons[i].isActive == 1)
+        DrawButton(&resources, &Buttons[i]);
+    }
+    if (Buttons[0].isCLicked == 1) {
+      listPanel->isActive = 1;
+      RenderPanel(&resources, listPanel);
+    } else {
+      listPanel->isActive = 0;
     }
     SDL_RenderPresent(resources.renderer);
 
@@ -98,6 +99,7 @@ int main(void) {
   for (int i = 0; i < numOfButtons; i++) {
     CleanUpButton(&Buttons[i]);
   }
+  CleanupPanel(listPanel);
   CleanupProgram(&resources);
   return 0;
 }

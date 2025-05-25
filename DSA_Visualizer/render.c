@@ -54,8 +54,8 @@ int InitButton(Res *resources, struct Button *button, char *path,
   return 0;
 }
 
-void InitButtonText(Res *res, struct Button *button, char *text, int textSize,
-                    char *font) {
+void InitButtonText(Res *res, struct Button *button, const char *text,
+                    int textSize, const char *font) {
   button->font = TTF_OpenFont(font, textSize);
   if (!button->font) {
     fprintf(stderr, "Failed to open font. Error Log: %s\n", TTF_GetError());
@@ -97,6 +97,25 @@ void DrawButton(Res *resources, struct Button *button) {
   }
   SDL_RenderCopy(resources->renderer, button->textTexture, 0,
                  &button->textRect);
+}
+int InitPanel(Res *res, struct Panel *panel) {
+  panel->background = IMG_LoadTexture(res->renderer, "textures/filePanel.png");
+  if (!panel->background) {
+    fprintf(stdout, "Texture loading error, Error log: %s\n", IMG_GetError());
+    return 1;
+  }
+  panel->position = (SDL_Rect){20, 500, 450, 500};
+  return 0;
+}
+
+void RenderPanel(Res *res, struct Panel *panel) {
+  if (panel->isActive) {
+    SDL_RenderCopy(res->renderer, panel->background, 0, &panel->position);
+  }
+}
+void CleanupPanel(struct Panel *panel) {
+  SDL_DestroyTexture(panel->background);
+  free(panel);
 }
 
 void CleanUpButton(struct Button *button) {
