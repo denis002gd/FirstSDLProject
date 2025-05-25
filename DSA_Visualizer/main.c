@@ -72,7 +72,7 @@ int main(void) {
           .background = NULL,
           .isCLicked = 0,
           .isActive = 1,
-          .position = {50, 530 + j * (BUTTON_SPACING + BUTTON_HEIGHT),
+          .position = {50, 530 + j * ((BUTTON_SPACING / 2) + BUTTON_HEIGHT),
                        BUTTON_WIDTH, BUTTON_HEIGHT},
           .textColor = {0, 0, 0, 255},
       };
@@ -137,7 +137,12 @@ int main(void) {
           }
         }
         break;
-
+      case SDL_MOUSEBUTTONUP:
+        for (int i = 0; i < numOfButtons; i++) {
+          for (int j = 0; j < panelButtonsCount[i]; j++) {
+            panelButtons[i][j].isCLicked = 0;
+          }
+        }
       default:
         break;
       }
@@ -157,6 +162,7 @@ int main(void) {
 
       for (int j = 0; j < panelButtonsCount[activePanel]; j++) {
         DrawButton(&resources, &panelButtons[activePanel][j]);
+        panelButtons[activePanel][j].isActive = 0;
       }
     }
 

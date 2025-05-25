@@ -87,16 +87,25 @@ void InitButtonText(Res *res, struct Button *button, const char *text,
 }
 
 void DrawButton(Res *resources, struct Button *button) {
-  if (!button->isCLicked) {
-    SDL_RenderCopy(resources->renderer, button->background, 0,
-                   &button->position);
-  } else {
+  SDL_Rect drawPos = button->position;
+  SDL_Rect textPos = button->textRect;
 
-    SDL_RenderCopy(resources->renderer, button->selectedBG, 0,
-                   &button->position);
+  if (!button->isCLicked) {
+    SDL_RenderCopy(resources->renderer, button->background, 0, &drawPos);
+  } else {
+    int shrink = 3;
+    drawPos.x += shrink;
+    drawPos.y += shrink;
+    drawPos.w -= shrink * 2;
+    drawPos.h -= shrink * 2;
+
+    textPos.x += shrink;
+    textPos.y += shrink;
+
+    SDL_RenderCopy(resources->renderer, button->selectedBG, 0, &drawPos);
   }
-  SDL_RenderCopy(resources->renderer, button->textTexture, 0,
-                 &button->textRect);
+
+  SDL_RenderCopy(resources->renderer, button->textTexture, 0, &textPos);
 }
 int InitPanel(Res *res, struct Panel *panel) {
   panel->background = IMG_LoadTexture(res->renderer, "textures/filePanel.png");
