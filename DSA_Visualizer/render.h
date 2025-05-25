@@ -3,14 +3,14 @@
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_ttf.h>
-#define HEIGHT 1400
+#define HEIGHT 1000
 #define WIDTH 1600
 #define BUTTON_WIDTH 200
-#define BUTTON_HEIGHT 150
+#define BUTTON_HEIGHT 90
 #define BUTTON_SPACING 10
 #define FONT_PATH "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 #define REFRESHRATE 16
-
+// h
 #include <SDL2/SDL.h>
 
 typedef struct Resources {
@@ -51,6 +51,7 @@ void InitButtonText(Res *res, struct Button *button, const char *text,
 void CleanUpButton(struct Button *button);
 
 int InitPanel(Res *res, struct Panel *panel);
+
 void RenderPanel(Res *res, struct Panel *panel);
 void CleanupPanel(struct Panel *panel);
 #endif // !DEBUG:

@@ -43,15 +43,17 @@ int main(void) {
                    FONT_PATH);
   }
 
-  int maxNumPanels = 3;
-  const int panelButtonsCount[] = {3, 1, 2}; // each panel has 1 button
+  int maxNumPanels = 5;
+  const int panelButtonsCount[] = {5, 4, 3}; // each panel has 1 button
   struct Panel **Panels = malloc(numOfButtons * sizeof(struct Panel *));
 
   // panel button texts for each panel
-  const char *panelTexts[][3] = {{"Create Node", "Insert Node", "Delete Node"},
-                                 {"Push Element"},
-                                 {"Enqueue Item", "Dequeue Item"}};
-  const int panelFontSizes[] = {20, 20, 20};
+  const char *panelTexts[][5] = {
+      {"Create Node", "Insert Node", "Traverse List", "Sort List",
+       "Delete Node"},
+      {"Push Element", "Pop Element", "Peek", "Clear Stack"},
+      {"Enqueue Item", "Dequeue Item", "Clear Queue"}};
+  const int panelFontSizes[] = {20, 20, 20, 20, 20};
 
   struct Button panelButtons[numOfButtons][maxNumPanels];
 
@@ -62,7 +64,7 @@ int main(void) {
       printf("Failed to allocate memory for panel %d\n", i);
       exit(1);
     }
-
+    Panels[i]->buttonsCount = panelButtonsCount[i];
     InitPanel(&resources, Panels[i]);
     Panels[i]->isActive = 0;
     Panels[i]->panelIndex = i;
@@ -72,11 +74,10 @@ int main(void) {
           .background = NULL,
           .isCLicked = 0,
           .isActive = 1,
-          .position = {50, 530 + j * ((BUTTON_SPACING / 2) + BUTTON_HEIGHT),
+          .position = {50, HEIGHT - j * (25 + (BUTTON_HEIGHT)) - 140,
                        BUTTON_WIDTH, BUTTON_HEIGHT},
           .textColor = {0, 0, 0, 255},
       };
-
       InitButton(&resources, &panelButtons[i][j], "textures/buttonReady.png",
                  "textures/button.png");
       InitButtonText(&resources, &panelButtons[i][j], panelTexts[i][j],

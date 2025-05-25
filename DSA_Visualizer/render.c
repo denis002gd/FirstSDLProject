@@ -113,7 +113,11 @@ int InitPanel(Res *res, struct Panel *panel) {
     fprintf(stdout, "Texture loading error, Error log: %s\n", IMG_GetError());
     return 1;
   }
-  panel->position = (SDL_Rect){20, 500, 450, 500};
+  int panelHeight = panel->buttonsCount * BUTTON_HEIGHT +
+                    (panel->buttonsCount * 3) * BUTTON_SPACING;
+
+  panel->position =
+      (SDL_Rect){20, (HEIGHT - panelHeight - 30), 450, panelHeight};
   return 0;
 }
 
