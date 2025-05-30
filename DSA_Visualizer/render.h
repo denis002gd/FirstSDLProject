@@ -1,5 +1,6 @@
 #ifndef RENDER_H
 #define RENDER_H
+#include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_ttf.h>
@@ -17,6 +18,8 @@ typedef struct Resources {
   SDL_Window *window;
   SDL_Renderer *renderer;
   SDL_Color *bgColor;
+  Mix_Music *clickSFX;
+  Mix_Music *errorSFX;
 } Res;
 
 struct Button {
@@ -43,6 +46,7 @@ struct Panel {
 int InitProgram(Res *resources);
 void CleanupProgram(Res *resources);
 
+void PlayAudio(Res *resources, int index);
 int InitButton(Res *resources, struct Button *button, char *path,
                char *secondPath);
 void DrawButton(Res *resources, struct Button *button);

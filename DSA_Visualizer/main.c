@@ -18,6 +18,8 @@ int main(void) {
       .window = NULL,
       .renderer = NULL,
       .bgColor = NULL,
+      .clickSFX = NULL,
+      .errorSFX = NULL,
   };
   InitProgram(&resources);
 
@@ -106,6 +108,7 @@ int main(void) {
                             Buttons[i].position.w, Buttons[i].position.h,
                             mouseX, mouseY)) {
               printf("%s button was clicked!\n", buttonTexts[i]);
+              PlayAudio(&resources, 1);
 
               // deactivate all panels first
               for (int k = 0; k < numOfButtons; k++) {
@@ -130,6 +133,8 @@ int main(void) {
                             mouseY)) {
               printf("Panel button '%s' was clicked!\n",
                      panelTexts[activePanel][j]);
+
+              PlayAudio(&resources, 2);
               panelButtons[activePanel][j].isCLicked = 1;
 
             } else {

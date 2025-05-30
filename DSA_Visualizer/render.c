@@ -2,6 +2,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_error.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
@@ -26,6 +27,21 @@ int InitProgram(Res *resources) {
     fprintf(stderr, "Error on window initialization, Error: %s\n",
             SDL_GetError());
     return 1;
+  }
+  if (Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG) < 0) {
+    fprintf(stdout, "Failed audio initialization, Error: %s\n", Mix_GetError());
+    return 1;
+  }
+  if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    fprintf(stdout, "SDL_mixer could not open audio! Error: %s\n",
+            Mix_GetError());
+    return 1;
+  }
+  resources->clickSFX = Mix_LoadMUS("audio/click.mp3");
+  resources->errorSFX = Mix_LoadMUS("audio/error.mp3");
+  if (resources->clickSFX == NULL || resources->errorSFX == NULL) {
+    fprintf(stdout, "SDL_mixer did not find audio file! Error: %s\n",
+            Mix_GetError());
   }
   resources->renderer = SDL_CreateRenderer(resources->window, -1, 0);
   if (!resources->renderer) {
@@ -130,7 +146,19 @@ void CleanupPanel(struct Panel *panel) {
   SDL_DestroyTexture(panel->background);
   free(panel);
 }
-
+// 1 click, 2 error
+void PlayAudio(Res *resources, int index) {
+  switch (index) {
+  case 1:
+    Mix_PlayMusic(resources->clickSFX, 0);
+    break;
+  case 2:
+    Mix_PlayMusic(resources->errorSFX, 0);
+    break;
+  default:
+    break;
+  }
+}
 void CleanUpButton(struct Button *button) {
   if (button->background)
     SDL_DestroyTexture(button->background);
@@ -149,7 +177,10 @@ void CleanUpButton(struct Button *button) {
 void CleanupProgram(Res *resources) {
   SDL_DestroyRenderer(resources->renderer);
   SDL_DestroyWindow(resources->window);
+  Mix_FreeMusic(resources->clickSFX);
+  Mix_FreeMusic(resources->errorSFX);
   IMG_Quit();
   TTF_Quit();
+  Mix_Quit();
   SDL_Quit();
 }
