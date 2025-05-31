@@ -1,9 +1,12 @@
 #include "list.h"
 #include "render.h"
 #include <SDL2/SDL_events.h>
+#include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_scancode.h>
+#include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
@@ -22,7 +25,6 @@ int main(void) {
       .errorSFX = NULL,
   };
   InitProgram(&resources);
-
   // main navigation buttons
   int numOfButtons = 3;
   struct Button Buttons[numOfButtons];
@@ -86,21 +88,43 @@ int main(void) {
                      panelFontSizes[j], FONT_PATH);
     }
   }
+  //===============================================================================================
 
+  struct InputField inputField = {
+      .textTexture = NULL,
+      .font = NULL,
+      .input = NULL,
+      .position = (SDL_Rect){300, 300, 50, 50},
+      .active = 0,
+      .background = NULL,
+      .fontSize = 20,
+  };
+  InitInputField(&resources, &inputField, (SDL_Rect){700, 850, 50, 100},
+                 FONT_PATH, "Type here", 50);
   int mouseX, mouseY;
   int activePanel = -1; // track if a panel is currently active -1 = none
-
+  int inputPos = 0;
+  char inputBuffer[6] = {0};
   // Main game loop
   while (running) {
     SDL_Event event;
+    SDL_Keycode key;
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
       case SDL_QUIT:
         running = false;
         break;
-
+        // TODO: move the buttons checking in separate functions for readability
       case SDL_MOUSEBUTTONDOWN:
         SDL_GetMouseState(&mouseX, &mouseY);
+
+        if (IsInsideBox(inputField.bgPos.x, inputField.bgPos.y,
+                        inputField.bgPos.w, inputField.bgPos.h, mouseX,
+                        mouseY)) {
+          inputField.active = true;
+        } else {
+          inputField.active = false;
+        }
 
         for (int i = 0; i < numOfButtons; i++) {
           if (Buttons[i].isActive == 1) {
@@ -149,6 +173,28 @@ int main(void) {
             panelButtons[i][j].isCLicked = 0;
           }
         }
+        break;
+      case SDL_KEYDOWN:
+        key = event.key.keysym.sym;
+        if (inputField.active) {
+          if (key >= SDLK_0 && key <= SDLK_9 &&
+              inputPos < sizeof(inputBuffer) - 1) {
+            inputBuffer[inputPos++] = (char)(key);
+            inputBuffer[inputPos] = '\0';
+            printf("Input: %s\n", inputBuffer);
+          }
+          if (key == SDLK_BACKSPACE && inputPos > 0) {
+            inputBuffer[--inputPos] = '\0';
+            printf("Input: %s\n", inputBuffer);
+          }
+          inputField.input = inputBuffer;
+          if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+
+            int val = atoi(inputBuffer);
+            inputField.active = false;
+          }
+        }
+        break;
       default:
         break;
       }
@@ -172,6 +218,7 @@ int main(void) {
       }
     }
 
+    UpdateInput(&resources, &inputField, inputField.input);
     SDL_RenderPresent(resources.renderer);
     SDL_Delay(REFRESHRATE);
   }

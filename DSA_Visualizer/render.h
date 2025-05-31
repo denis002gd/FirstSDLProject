@@ -1,11 +1,14 @@
 #ifndef RENDER_H
 #define RENDER_H
 #include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_ttf.h>
+#include <stdbool.h>
 #define HEIGHT 1000
 #define WIDTH 1600
+#define RECT_PADDING 5
 #define BUTTON_WIDTH 200
 #define BUTTON_HEIGHT 90
 #define BUTTON_SPACING 10
@@ -43,6 +46,18 @@ struct Panel {
   int buttonsCount;
   struct Button buttons[];
 };
+struct InputField {
+  char *input;
+  bool active;
+  SDL_Rect position;
+  SDL_Rect bgPos;
+  TTF_Font *font;
+  const int fontSize;
+  SDL_Color textColor;
+  SDL_Texture *textTexture;
+  SDL_Texture *background;
+  SDL_Texture *deselectedBG;
+};
 int InitProgram(Res *resources);
 void CleanupProgram(Res *resources);
 
@@ -58,4 +73,8 @@ int InitPanel(Res *res, struct Panel *panel);
 
 void RenderPanel(Res *res, struct Panel *panel);
 void CleanupPanel(struct Panel *panel);
+
+int InitInputField(Res *resurces, struct InputField *InputField, SDL_Rect rect,
+                   const char *textFont, char *text, const int textSize);
+void UpdateInput(Res *resurces, struct InputField *InputField, char *newInput);
 #endif // !DEBUG:
