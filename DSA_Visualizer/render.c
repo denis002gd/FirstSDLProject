@@ -289,3 +289,31 @@ void UpdateInput(Res *resources, struct InputField *inputField,
   SDL_RenderCopy(resources->renderer, inputField->textTexture, NULL,
                  &inputField->position);
 }
+int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
+             int index) {
+  if (index > MAXNODES) {
+    printf("Excceded max amount of nodes!\n");
+    return 1;
+  }
+  node->texture = IMG_LoadTexture(resurces->renderer, "textures/frame.png");
+
+  if (!node->texture) {
+    printf("Failed at loading textures, Error: %s\n", IMG_GetError());
+    return 1;
+  }
+  node->rect = rect;
+  SDL_Surface *surf = TTF_RenderText_Solid(FONT_PATH, strlen(text) ? text : " ",
+                                           (SDL_Color){0, 0, 0, 255});
+  node->textTexture = SDL_CreateTextureFromSurface(resurces->renderer, surf);
+  SDL_FreeSurface(surf);
+  SDL_Rect textRect = {rect.x + (rect.x / 2), rect.y - BUTTON_SPACING,
+                       rect.w / 2, rect.h / 2};
+  node->textRect = textRect;
+
+  if (!node->textTexture) {
+    printf("Failed at loading text textures, Error: %s\n", SDL_GetError());
+    return 1;
+  }
+
+  return 0;
+}

@@ -1,5 +1,6 @@
 #ifndef RENDER_H
 #define RENDER_H
+#include "list.h"
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
@@ -14,6 +15,7 @@
 #define BUTTON_SPACING 10
 #define FONT_PATH "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 #define REFRESHRATE 16
+#define MAXNODES 10
 // h
 #include <SDL2/SDL.h>
 
@@ -58,6 +60,18 @@ struct InputField {
   SDL_Texture *background;
   SDL_Texture *deselectedBG;
 };
+typedef struct NodeVisual {
+  SDL_Texture *texture;
+  SDL_Rect rect;
+  List *nodeList;
+  int nodeIndex;
+
+  char *text;
+  TTF_Font *font;
+  SDL_Texture *textTexture;
+  SDL_Rect textRect;
+} Node_v;
+
 int InitProgram(Res *resources);
 void CleanupProgram(Res *resources);
 
@@ -77,4 +91,7 @@ void CleanupPanel(struct Panel *panel);
 int InitInputField(Res *resurces, struct InputField *InputField, SDL_Rect rect,
                    const char *textFont, char *text, const int textSize);
 void UpdateInput(Res *resurces, struct InputField *InputField, char *newInput);
+int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rec, int index);
+void UpdateList(Res *resources, Node_v *node_v);
+void FreeNodesInfo(Node_v *node);
 #endif // !DEBUG:
