@@ -25,6 +25,7 @@ typedef struct Resources {
   SDL_Color *bgColor;
   Mix_Music *clickSFX;
   Mix_Music *errorSFX;
+  int nodesNumber;
 } Res;
 
 struct Button {
@@ -91,7 +92,8 @@ void CleanupPanel(struct Panel *panel);
 int InitInputField(Res *resurces, struct InputField *InputField, SDL_Rect rect,
                    const char *textFont, char *text, const int textSize);
 void UpdateInput(Res *resurces, struct InputField *InputField, char *newInput);
-int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rec, int index);
+int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index);
 void UpdateList(Res *resources, Node_v *node_v);
 void FreeNodesInfo(Node_v *node);
+void AddNodeToList(Res *resources, List *list, node_s *addedNode);
 #endif // !DEBUG:

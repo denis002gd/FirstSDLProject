@@ -1,4 +1,5 @@
 #include "render.h"
+#include "list.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_error.h>
 #include <SDL2/SDL_image.h>
@@ -302,12 +303,13 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
     return 1;
   }
   node->rect = rect;
-  SDL_Surface *surf = TTF_RenderText_Solid(FONT_PATH, strlen(text) ? text : " ",
-                                           (SDL_Color){0, 0, 0, 255});
+  node->font = TTF_OpenFont(FONT_PATH, 28);
+  SDL_Surface *surf = TTF_RenderText_Solid(
+      node->font, strlen(text) ? text : " ", (SDL_Color){0, 0, 0, 255});
   node->textTexture = SDL_CreateTextureFromSurface(resurces->renderer, surf);
   SDL_FreeSurface(surf);
-  SDL_Rect textRect = {rect.x + (rect.x / 2), rect.y - BUTTON_SPACING,
-                       rect.w / 2, rect.h / 2};
+  SDL_Rect textRect = {rect.x + (rect.w / 4), rect.y - (rect.h / 3), rect.w / 2,
+                       rect.h / 3};
   node->textRect = textRect;
 
   if (!node->textTexture) {
@@ -316,4 +318,41 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
   }
 
   return 0;
+}
+
+void UpdateList(Res *resources, Node_v *node_v) {
+  if (!node_v->texture || !node_v->textTexture) {
+    return;
+  }
+  SDL_RenderCopy(resources->renderer, node_v->texture, 0, &node_v->rect);
+  SDL_RenderCopy(resources->renderer, node_v->textTexture, 0,
+                 &node_v->textRect);
+}
+
+void FreeNodesInfo(Node_v *node) {
+  SDL_DestroyTexture(node->textTexture);
+  SDL_DestroyTexture(node->texture);
+}
+
+void AddNodeToList(Res *resources, List *list, node_s *addedNode) {
+  Node_v nodeVis = {
+      .texture = NULL,
+      .textTexture = NULL,
+      .nodeIndex = 0,
+      .font = NULL,
+      .textRect = NULL,
+      .rect = (SDL_Rect){resources->nodesNumber * 200, 500, 150, 90},
+
+  };
+  resources->nodesNumber++;
+  char *name = NULL;
+  sprintf(name, "%d\n", resources->nodesNumber);
+  InitNode(&nodeVis, resources, name, nodeVis.rect, resources->nodesNumber);
+  node_s *temp = list->Head;
+  while (temp != NULL) {
+    temp = temp->next;
+  }
+  temp->next = addedNode;
+  list->Head = temp;
+  nodeVis.nodeList = list;
 }
