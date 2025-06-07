@@ -52,6 +52,7 @@ int IsInsideBox(int x, int y, int w, int h, int x1, int y1) {
   return (x1 >= x && x1 <= x + w && y1 >= y && y1 <= y + h);
 }
 
+int RandomInt(int min, int max) { return (rand() % max) + min; }
 Vector2 V2Lerp(Vector2 destination, Vector2 target, int speed) {
   Vector2 direction = V2Sub(target, destination);
   float distance = V2Distance(target, destination);

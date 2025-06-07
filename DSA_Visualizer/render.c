@@ -166,7 +166,7 @@ int InitPanel(Res *res, struct Panel *panel) {
                     (panel->buttonsCount * 3) * BUTTON_SPACING;
 
   panel->position =
-      (SDL_Rect){20, (HEIGHT - panelHeight - 30), 450, panelHeight};
+      (SDL_Rect){20, (HEIGHT - panelHeight - 30), 300, panelHeight};
   return 0;
 }
 
@@ -296,7 +296,7 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
     printf("Excceded max amount of nodes!\n");
     return 1;
   }
-  node->texture = IMG_LoadTexture(resurces->renderer, "textures/frame.png");
+  node->texture = IMG_LoadTexture(resurces->renderer, "textures/NodeV.png");
 
   if (!node->texture) {
     printf("Failed at loading textures, Error: %s\n", IMG_GetError());
@@ -311,7 +311,8 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
   SDL_Rect textRect = {rect.x + (rect.w / 4), rect.y - (rect.h / 3), rect.w / 2,
                        rect.h / 3};
   node->textRect = textRect;
-
+  node->position = (Vector2){rect.x, rect.y};
+  node->next = NULL;
   if (!node->textTexture) {
     printf("Failed at loading text textures, Error: %s\n", SDL_GetError());
     return 1;
@@ -319,40 +320,128 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
 
   return 0;
 }
+// this function rescales the nodes based on number
+void UpdateList(Res *resources, Node_v *listHead) {
+  if (!listHead)
+    return;
 
-void UpdateList(Res *resources, Node_v *node_v) {
-  if (!node_v->texture || !node_v->textTexture) {
+  Node_v *current = listHead;
+
+  int availableWidth = WIDTH;
+  int newNodeWidth = NODE_WIDTH - ((resources->nodesNumber - 5) * 6);
+  int newNodeHeight = NODE_HEIGHT - ((resources->nodesNumber - 5) * 3);
+  int newSpacing = (availableWidth - (resources->nodesNumber * newNodeWidth)) /
+                   (resources->nodesNumber + 1);
+
+  current = listHead;
+  int index = 0;
+  while (current && index < resources->nodesNumber) {
+    current->rect.w = newNodeWidth;
+    current->rect.h = newNodeHeight;
+
+    int reversedIndex = resources->nodesNumber - 1 - index;
+    current->rect.x =
+        newSpacing + (reversedIndex * (newNodeWidth + newSpacing));
+    current->rect.y = current->position.y; // Keep original Y from spawn
+
+    current->textRect.w = NODE_WIDTH - ((resources->nodesNumber) * 6);
+    current->textRect.h = (NODE_HEIGHT - 40) - ((resources->nodesNumber) * 2);
+
+    current->textRect.x =
+        current->rect.x + (current->rect.w - current->textRect.w) / 2;
+    current->textRect.y =
+        (current->rect.y + (current->rect.h - current->textRect.h) / 2) -
+        current->rect.h / 1.5;
+
+    current = current->next;
+    index++;
+  }
+
+  current = listHead;
+  while (current) {
+    if (current->texture && current->textTexture) {
+      SDL_RenderCopy(resources->renderer, current->texture, NULL,
+                     &current->rect);
+      SDL_RenderCopy(resources->renderer, current->textTexture, NULL,
+                     &current->textRect);
+    }
+    current = current->next;
+  }
+}
+
+void FreeNodesInfo(Node_v **listHead) {
+  if (!listHead || !*listHead) {
     return;
   }
-  SDL_RenderCopy(resources->renderer, node_v->texture, 0, &node_v->rect);
-  SDL_RenderCopy(resources->renderer, node_v->textTexture, 0,
-                 &node_v->textRect);
+
+  Node_v *current = *listHead;
+  while (current) {
+    Node_v *temp = current;
+    current = current->next;
+
+    if (temp->textTexture) {
+      SDL_DestroyTexture(temp->textTexture);
+    }
+    if (temp->texture) {
+      SDL_DestroyTexture(temp->texture);
+    }
+    if (temp->font) {
+      TTF_CloseFont(temp->font);
+    }
+    free(temp);
+  }
+  *listHead = NULL;
 }
 
-void FreeNodesInfo(Node_v *node) {
-  SDL_DestroyTexture(node->textTexture);
-  SDL_DestroyTexture(node->texture);
-}
+Node_v *AddNodeToList(Res *resources, Node_v **listHead, int value) {
+  Node_v *nodeVis = malloc(sizeof(Node_v));
+  if (!nodeVis) {
+    printf("Failed to allocate memory for new node\n");
+    return NULL;
+  }
 
-void AddNodeToList(Res *resources, List *list, node_s *addedNode) {
-  Node_v nodeVis = {
+  int baseX = 300 + resources->nodesNumber * 180;
+  int baseY = 250;
+
+  int randomYOffset = RandomInt(-100, 100);
+  int finalY = baseY + randomYOffset;
+
+  if (finalY < 50)
+    finalY = 50;
+  if (finalY > HEIGHT - NODE_HEIGHT - 50)
+    finalY = HEIGHT - NODE_HEIGHT - 50;
+
+  *nodeVis = (Node_v){
       .texture = NULL,
       .textTexture = NULL,
-      .nodeIndex = 0,
+      .nodeIndex = resources->nodesNumber + 1,
       .font = NULL,
-      .textRect = NULL,
-      .rect = (SDL_Rect){resources->nodesNumber * 200, 500, 150, 90},
-
+      .textRect = {0},
+      .rect = (SDL_Rect){baseX, finalY, NODE_WIDTH, NODE_HEIGHT},
+      .next = NULL,
   };
+
   resources->nodesNumber++;
-  char *name = NULL;
-  sprintf(name, "%d\n", resources->nodesNumber);
-  InitNode(&nodeVis, resources, name, nodeVis.rect, resources->nodesNumber);
-  node_s *temp = list->Head;
-  while (temp != NULL) {
-    temp = temp->next;
+
+  char name[20];
+  sprintf(name, "Node %d", nodeVis->nodeIndex);
+
+  if (InitNode(nodeVis, resources, name, nodeVis->rect, nodeVis->nodeIndex) !=
+      0) {
+    free(nodeVis);
+    resources->nodesNumber--;
+    return NULL;
   }
-  temp->next = addedNode;
-  list->Head = temp;
-  nodeVis.nodeList = list;
+
+  nodeVis->textRect.x =
+      nodeVis->rect.x + (nodeVis->rect.w - nodeVis->textRect.w) / 2;
+  nodeVis->textRect.y =
+      nodeVis->rect.y + (nodeVis->rect.h - nodeVis->textRect.h) / 2;
+
+  nodeVis->position = (Vector2){nodeVis->rect.x, nodeVis->rect.y};
+
+  nodeVis->next = *listHead;
+  *listHead = nodeVis;
+
+  return nodeVis;
 }

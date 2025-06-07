@@ -15,7 +15,10 @@
 #define BUTTON_SPACING 10
 #define FONT_PATH "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 #define REFRESHRATE 16
-#define MAXNODES 10
+
+#define MAXNODES 20
+#define NODE_WIDTH 150
+#define NODE_HEIGHT 90
 // h
 #include <SDL2/SDL.h>
 
@@ -62,6 +65,8 @@ struct InputField {
   SDL_Texture *deselectedBG;
 };
 typedef struct NodeVisual {
+  Vector2 position;
+  struct NodeVisual *next;
   SDL_Texture *texture;
   SDL_Rect rect;
   List *nodeList;
@@ -94,6 +99,6 @@ int InitInputField(Res *resurces, struct InputField *InputField, SDL_Rect rect,
 void UpdateInput(Res *resurces, struct InputField *InputField, char *newInput);
 int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index);
 void UpdateList(Res *resources, Node_v *node_v);
-void FreeNodesInfo(Node_v *node);
-void AddNodeToList(Res *resources, List *list, node_s *addedNode);
+void FreeNodesInfo(Node_v **node);
+Node_v *AddNodeToList(Res *resources, Node_v **Root, int value);
 #endif // !DEBUG:

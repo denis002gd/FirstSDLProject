@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 bool running = true;
 
@@ -22,16 +23,19 @@ void InitializePanels(Res *resources, struct Panel ***panels,
 void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                       struct Panel **panels, struct Button panelButtons[][5],
                       struct InputField *inputField, int *activePanel);
-void HandleKeyboardInput(SDL_Event *event, struct InputField *inputField,
-                         char *inputBuffer, int *inputPos);
+void HandleKeyboardInput(Res *resources, SDL_Event *event,
+                         struct InputField *inputField, char *inputBuffer,
+                         int *inputPos);
 void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
                  struct Button panelButtons[][5], struct InputField *inputField,
                  Node_v *nodeVis, int activePanel);
 void CleanupAll(struct Button *buttons, struct Panel **panels,
-                struct Button panelButtons[][5], Node_v *nodeVis,
+                struct Button panelButtons[][5], Node_v **listHead,
                 Res *resources);
+Node_v *listHead = NULL;
 
 int main(void) {
+  srand(time(NULL));
   Res resources = {0};
   InitProgram(&resources);
 
@@ -40,15 +44,12 @@ int main(void) {
   struct Panel **panels;
   struct Button panelButtons[numOfButtons][5];
   struct InputField inputField = {0};
-  Node_v nodeVis = {0};
 
   InitializeMainButtons(&resources, mainButtons, numOfButtons);
   InitializePanels(&resources, &panels, panelButtons, numOfButtons);
 
   InitInputField(&resources, &inputField, (SDL_Rect){700, 850, 50, 100},
                  FONT_PATH, "Type here", 50);
-
-  InitNode(&nodeVis, &resources, "node 1", (SDL_Rect){500, 500, 150, 90}, 1);
 
   int activePanel = -1;
   int inputPos = 0;
@@ -67,17 +68,18 @@ int main(void) {
                          &inputField, &activePanel);
         break;
       case SDL_KEYDOWN:
-        HandleKeyboardInput(&event, &inputField, inputBuffer, &inputPos);
+        HandleKeyboardInput(&resources, &event, &inputField, inputBuffer,
+                            &inputPos);
         break;
       }
     }
 
     RenderScene(&resources, mainButtons, panels, panelButtons, &inputField,
-                &nodeVis, activePanel);
+                listHead, activePanel);
     SDL_Delay(REFRESHRATE);
   }
 
-  CleanupAll(mainButtons, panels, panelButtons, &nodeVis, &resources);
+  CleanupAll(mainButtons, panels, panelButtons, &listHead, &resources);
   return 0;
 }
 
@@ -154,7 +156,8 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
   SDL_GetMouseState(&mouseX, &mouseY);
 
   if (event->type == SDL_MOUSEBUTTONDOWN) {
-    // Handle input field click
+    // TODO: inplement data insertion into nodes
+    //  handle input field click
     if (IsInsideBox(inputField->bgPos.x, inputField->bgPos.y,
                     inputField->bgPos.w, inputField->bgPos.h, mouseX, mouseY)) {
       inputField->active = true;
@@ -162,7 +165,7 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
       inputField->active = false;
     }
 
-    // Handle main button clicks
+    // handle main button clicks
     for (int i = 0; i < numOfButtons; i++) {
       if (buttons[i].isActive &&
           IsInsideBox(buttons[i].position.x, buttons[i].position.y,
@@ -170,21 +173,32 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                       mouseY)) {
         printf("%s button was clicked!\n", buttonTexts[i]);
         PlayAudio(resources, 1);
-        // Deactivate all panels
+        // aeactivate all panels
         for (int k = 0; k < numOfButtons; k++) {
           panels[k]->isActive = 0;
           buttons[k].isCLicked = 0;
         }
 
-        // Activate clicked panel
+        // activate clicked panel
         buttons[i].isCLicked = 1;
         panels[i]->isActive = 1;
         *activePanel = i;
         break;
       }
     }
+    // button for adding nodes
+    if (IsInsideBox(panelButtons[1][0].position.x,
+                    panelButtons[1][0].position.y,
+                    panelButtons[1][0].position.w,
+                    panelButtons[1][0].position.h, mouseX, mouseY)) {
+      Node_v *newNode =
+          AddNodeToList(resources, &listHead, resources->nodesNumber);
+      if (newNode) {
+        printf("Added new node with value %d\n", resources->nodesNumber);
+      }
+    }
 
-    // Handle panel button clicks
+    // handle panel button clicks
     if (*activePanel >= 0 && panels[*activePanel]->isActive) {
       for (int j = 0; j < panelButtonsCount[*activePanel]; j++) {
         if (IsInsideBox(panelButtons[*activePanel][j].position.x,
@@ -210,8 +224,9 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
   }
 }
 
-void HandleKeyboardInput(SDL_Event *event, struct InputField *inputField,
-                         char *inputBuffer, int *inputPos) {
+void HandleKeyboardInput(Res *resources, SDL_Event *event,
+                         struct InputField *inputField, char *inputBuffer,
+                         int *inputPos) {
   if (!inputField->active)
     return;
 
@@ -225,33 +240,34 @@ void HandleKeyboardInput(SDL_Event *event, struct InputField *inputField,
     inputBuffer[--(*inputPos)] = '\0';
     printf("Input: %s\n", inputBuffer);
   } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
-    // int val = atoi(inputBuffer);
     inputField->active = false;
-    // Handle the entered value here
+    Node_v *newNode =
+        AddNodeToList(resources, &listHead, resources->nodesNumber);
+    if (newNode) {
+      printf("Added new node from input\n");
+    }
   }
 
   inputField->input = inputBuffer;
 }
-
 void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
                  struct Button panelButtons[][5], struct InputField *inputField,
-                 Node_v *nodeVis, int activePanel) {
+                 Node_v *listHead, int activePanel) {
   static const int numOfButtons = 3;
   static const int panelButtonsCount[] = {5, 4, 3};
 
   SDL_SetRenderDrawColor(resources->renderer, 253, 240, 213, 0);
   SDL_RenderClear(resources->renderer);
 
-  UpdateList(resources, nodeVis);
+  // render all nodes in the list
+  UpdateList(resources, listHead);
 
-  // Draw main buttons
   for (int i = 0; i < numOfButtons; i++) {
     if (buttons[i].isActive) {
       DrawButton(resources, &buttons[i]);
     }
   }
 
-  // Draw active panel and its buttons
   if (activePanel >= 0 && panels[activePanel]->isActive) {
     RenderPanel(resources, panels[activePanel]);
     for (int j = 0; j < panelButtonsCount[activePanel]; j++) {
@@ -259,13 +275,11 @@ void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
       panelButtons[activePanel][j].isActive = 0;
     }
   }
-
   UpdateInput(resources, inputField, inputField->input);
   SDL_RenderPresent(resources->renderer);
 }
-
 void CleanupAll(struct Button *buttons, struct Panel **panels,
-                struct Button panelButtons[][5], Node_v *nodeVis,
+                struct Button panelButtons[][5], Node_v **listHead,
                 Res *resources) {
   static const int numOfButtons = 3;
   static const int panelButtonsCount[] = {5, 4, 3};
@@ -283,9 +297,9 @@ void CleanupAll(struct Button *buttons, struct Panel **panels,
     }
   }
 
-  FreeNodesInfo(nodeVis);
+  // Free the linked list
+  FreeNodesInfo(listHead);
 
   free(panels);
-
   CleanupProgram(resources);
 }
