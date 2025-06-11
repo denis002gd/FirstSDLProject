@@ -22,7 +22,8 @@ void InitializePanels(Res *resources, struct Panel ***panels,
                       struct Button panelButtons[][5], int numOfButtons);
 void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                       struct Panel **panels, struct Button panelButtons[][5],
-                      struct InputField *inputField, int *activePanel);
+                      struct InputField *inputField, int *activePanel,
+                      Node_v *list);
 void HandleKeyboardInput(Res *resources, SDL_Event *event,
                          struct InputField *inputField, char *inputBuffer,
                          int *inputPos);
@@ -33,7 +34,7 @@ void CleanupAll(struct Button *buttons, struct Panel **panels,
                 struct Button panelButtons[][5], Node_v **listHead,
                 Res *resources);
 Node_v *listHead = NULL;
-
+Vector2 middle = {500, 250};
 int main(void) {
   srand(time(NULL));
   Res resources = {0};
@@ -64,8 +65,9 @@ int main(void) {
         break;
       case SDL_MOUSEBUTTONDOWN:
       case SDL_MOUSEBUTTONUP:
+
         HandleMouseInput(&resources, &event, mainButtons, panels, panelButtons,
-                         &inputField, &activePanel);
+                         &inputField, &activePanel, listHead);
         break;
       case SDL_KEYDOWN:
         HandleKeyboardInput(&resources, &event, &inputField, inputBuffer,
@@ -142,7 +144,8 @@ void InitializePanels(Res *resources, struct Panel ***panels,
 
 void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                       struct Panel **panels, struct Button panelButtons[][5],
-                      struct InputField *inputField, int *activePanel) {
+                      struct InputField *inputField, int *activePanel,
+                      Node_v *list) {
   static const int numOfButtons = 3;
   static const int panelButtonsCount[] = {5, 4, 3};
   static const char *buttonTexts[] = {"Linked List", "Stack", "Queue"};
@@ -155,6 +158,7 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
   int mouseX, mouseY;
   SDL_GetMouseState(&mouseX, &mouseY);
 
+  CheckList(listHead, mouseX, mouseY, (event->type == SDL_MOUSEBUTTONDOWN));
   if (event->type == SDL_MOUSEBUTTONDOWN) {
     // TODO: inplement data insertion into nodes
     //  handle input field click
@@ -193,8 +197,10 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                     panelButtons[1][0].position.h, mouseX, mouseY)) {
       Node_v *newNode =
           AddNodeToList(resources, &listHead, resources->nodesNumber);
-      if (newNode) {
-        printf("Added new node with value %d\n", resources->nodesNumber);
+      if (resources->nodesNumber < MAXNODES) {
+        PlayAudio(resources, 3);
+      } else {
+        PlayAudio(resources, 2);
       }
     }
 
@@ -227,16 +233,20 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
 void HandleKeyboardInput(Res *resources, SDL_Event *event,
                          struct InputField *inputField, char *inputBuffer,
                          int *inputPos) {
-  if (!inputField->active)
-    return;
 
   SDL_Keycode key = event->key.keysym.sym;
+  if (key == SDLK_BACKSLASH) {
+    listHead->isMoving = true;
+  }
 
+  if (!inputField->active)
+    return;
   if (key >= SDLK_0 && key <= SDLK_9 && *inputPos < 5) {
     inputBuffer[(*inputPos)++] = (char)key;
     inputBuffer[*inputPos] = '\0';
     printf("Input: %s\n", inputBuffer);
   } else if (key == SDLK_BACKSPACE && *inputPos > 0) {
+
     inputBuffer[--(*inputPos)] = '\0';
     printf("Input: %s\n", inputBuffer);
   } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {

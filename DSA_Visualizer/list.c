@@ -52,16 +52,18 @@ int IsInsideBox(int x, int y, int w, int h, int x1, int y1) {
   return (x1 >= x && x1 <= x + w && y1 >= y && y1 <= y + h);
 }
 
-int RandomInt(int min, int max) { return (rand() % max) + min; }
-Vector2 V2Lerp(Vector2 destination, Vector2 target, int speed) {
+int RandomInt(int min, int max) { return (rand() % (max - min + 1)) + min; }
+Vector2 V2Lerp(Vector2 destination, Vector2 target, int speed, bool *moving) {
   Vector2 direction = V2Sub(target, destination);
   float distance = V2Distance(target, destination);
-  if (distance <= speed || distance == 0) {
+
+  if (distance <= 1.0f) {
+    *moving = false;
     return target;
   }
-  Vector2 norm = Normalize(direction);
-  Vector2 step = V2Scale(norm, speed);
-  Vector2 newPos = V2Add(destination, step);
+
+  float t = 0.2f;
+  Vector2 newPos = V2Add(destination, V2Scale(direction, t));
   return newPos;
 }
 
@@ -85,7 +87,9 @@ Vector2 Normalize(Vector2 vect) {
   float aPow = vect.x * vect.x;
   float bPow = vect.y * vect.y;
   float mag = sqrt(aPow + bPow);
-
+  if (mag == 0.0f) {
+    return (Vector2){0.0f, 0.0f};
+  }
   float xNorm = vect.x / mag;
   float yNorm = vect.y / mag;
   Vector2 normalized = {xNorm, yNorm};

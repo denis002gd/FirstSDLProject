@@ -28,6 +28,7 @@ typedef struct Resources {
   SDL_Color *bgColor;
   Mix_Music *clickSFX;
   Mix_Music *errorSFX;
+  Mix_Music *spawnSFX;
   int nodesNumber;
 } Res;
 
@@ -66,8 +67,11 @@ struct InputField {
 };
 typedef struct NodeVisual {
   Vector2 position;
+  bool isMoving;
   struct NodeVisual *next;
   SDL_Texture *texture;
+  bool isSelected;
+  SDL_Texture *SelectedTexture;
   SDL_Rect rect;
   List *nodeList;
   int nodeIndex;
@@ -77,28 +81,32 @@ typedef struct NodeVisual {
   SDL_Texture *textTexture;
   SDL_Rect textRect;
 } Node_v;
-
+//=========Essentials====================
 int InitProgram(Res *resources);
 void CleanupProgram(Res *resources);
-
+//=========Audio=========================
 void PlayAudio(Res *resources, int index);
+//=========Buttons=======================
 int InitButton(Res *resources, struct Button *button, char *path,
                char *secondPath);
 void DrawButton(Res *resources, struct Button *button);
 void InitButtonText(Res *res, struct Button *button, const char *text,
                     int textSize, const char *font);
 void CleanUpButton(struct Button *button);
-
+//=========Panels========================
 int InitPanel(Res *res, struct Panel *panel);
 
 void RenderPanel(Res *res, struct Panel *panel);
 void CleanupPanel(struct Panel *panel);
-
+//========Input==========================
 int InitInputField(Res *resurces, struct InputField *InputField, SDL_Rect rect,
                    const char *textFont, char *text, const int textSize);
 void UpdateInput(Res *resurces, struct InputField *InputField, char *newInput);
+//========Nodes==========================
 int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index);
 void UpdateList(Res *resources, Node_v *node_v);
 void FreeNodesInfo(Node_v **node);
 Node_v *AddNodeToList(Res *resources, Node_v **Root, int value);
+void CheckList(Node_v *node, int mouseX, int mouseY, bool isClick);
+//=======================================
 #endif // !DEBUG:

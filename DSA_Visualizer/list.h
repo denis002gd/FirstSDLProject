@@ -16,7 +16,7 @@ typedef struct {
 } Vector2;
 //====VectorFunctions====
 
-Vector2 V2Lerp(Vector2 destination, Vector2 target, int speed);
+Vector2 V2Lerp(Vector2 destination, Vector2 target, int speed, bool *moving);
 bool CompareVectors(Vector2 vec1, Vector2 vec2);
 float V2Distance(Vector2 vect1, Vector2 vect2);
 Vector2 V2Scale(Vector2 vect, float amount);

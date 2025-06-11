@@ -44,7 +44,9 @@ int InitProgram(Res *resources) {
   }
   resources->clickSFX = Mix_LoadMUS("audio/click.mp3");
   resources->errorSFX = Mix_LoadMUS("audio/error.mp3");
-  if (resources->clickSFX == NULL || resources->errorSFX == NULL) {
+  resources->spawnSFX = Mix_LoadMUS("audio/spawn.mp3");
+  if (resources->clickSFX == NULL || resources->errorSFX == NULL ||
+      resources->spawnSFX == NULL) {
     fprintf(stdout, "SDL_mixer did not find audio file! Error: %s\n",
             Mix_GetError());
   }
@@ -180,7 +182,7 @@ void CleanupPanel(struct Panel *panel) {
   free(panel);
 }
 //====================================AudioFunctions===============================
-// 1 click, 2 error
+// 1 click, 2 error, 3 spawn
 void PlayAudio(Res *resources, int index) {
   switch (index) {
   case 1:
@@ -188,6 +190,9 @@ void PlayAudio(Res *resources, int index) {
     break;
   case 2:
     Mix_PlayMusic(resources->errorSFX, 0);
+    break;
+  case 3:
+    Mix_PlayMusic(resources->spawnSFX, 0);
     break;
   default:
     break;
@@ -297,8 +302,9 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
     return 1;
   }
   node->texture = IMG_LoadTexture(resurces->renderer, "textures/NodeV.png");
-
-  if (!node->texture) {
+  node->SelectedTexture =
+      IMG_LoadTexture(resurces->renderer, "textures/NodeSelect.png");
+  if (!node->texture || !node->SelectedTexture) {
     printf("Failed at loading textures, Error: %s\n", IMG_GetError());
     return 1;
   }
@@ -313,6 +319,8 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
   node->textRect = textRect;
   node->position = (Vector2){rect.x, rect.y};
   node->next = NULL;
+  node->isMoving = false;
+  node->isSelected = false;
   if (!node->textTexture) {
     printf("Failed at loading text textures, Error: %s\n", SDL_GetError());
     return 1;
@@ -326,23 +334,22 @@ void UpdateList(Res *resources, Node_v *listHead) {
     return;
 
   Node_v *current = listHead;
-
   int availableWidth = WIDTH;
   int newNodeWidth = NODE_WIDTH - ((resources->nodesNumber - 5) * 6);
   int newNodeHeight = NODE_HEIGHT - ((resources->nodesNumber - 5) * 3);
   int newSpacing = (availableWidth - (resources->nodesNumber * newNodeWidth)) /
                    (resources->nodesNumber + 1);
-
   current = listHead;
   int index = 0;
   while (current && index < resources->nodesNumber) {
+
     current->rect.w = newNodeWidth;
     current->rect.h = newNodeHeight;
 
     int reversedIndex = resources->nodesNumber - 1 - index;
-    current->rect.x =
+    current->position.x =
         newSpacing + (reversedIndex * (newNodeWidth + newSpacing));
-    current->rect.y = current->position.y; // Keep original Y from spawn
+    current->position.y = current->position.y; // Keep original Y from spawn
 
     current->textRect.w = NODE_WIDTH - ((resources->nodesNumber) * 6);
     current->textRect.h = (NODE_HEIGHT - 40) - ((resources->nodesNumber) * 2);
@@ -359,9 +366,21 @@ void UpdateList(Res *resources, Node_v *listHead) {
 
   current = listHead;
   while (current) {
+
+    current->rect.x = current->position.x;
+    current->rect.y = current->position.y;
+    if (current != NULL && current->isMoving) {
+      current->position = V2Lerp(current->position, (Vector2){500, 200}, 40,
+                                 &current->isMoving);
+    }
     if (current->texture && current->textTexture) {
-      SDL_RenderCopy(resources->renderer, current->texture, NULL,
-                     &current->rect);
+      if (!current->isSelected) {
+        SDL_RenderCopy(resources->renderer, current->texture, NULL,
+                       &current->rect);
+      } else {
+        SDL_RenderCopy(resources->renderer, current->SelectedTexture, NULL,
+                       &current->rect);
+      }
       SDL_RenderCopy(resources->renderer, current->textTexture, NULL,
                      &current->textRect);
     }
@@ -439,9 +458,34 @@ Node_v *AddNodeToList(Res *resources, Node_v **listHead, int value) {
       nodeVis->rect.y + (nodeVis->rect.h - nodeVis->textRect.h) / 2;
 
   nodeVis->position = (Vector2){nodeVis->rect.x, nodeVis->rect.y};
-
+  nodeVis->isMoving = false;
   nodeVis->next = *listHead;
   *listHead = nodeVis;
 
   return nodeVis;
+}
+
+void CheckList(Node_v *node, int mouseX, int mouseY, bool isClick) {
+  Node_v *temp = node;
+
+  if (isClick) {
+    while (temp) {
+      temp->isSelected = false;
+      temp = temp->next;
+    }
+    temp = node;
+  }
+
+  while (temp) {
+
+    if (IsInsideBox(temp->rect.x, temp->rect.y, temp->rect.w, temp->rect.h,
+                    mouseX, mouseY)) {
+      if (isClick) {
+        temp->isSelected = true;
+        temp->isMoving = true;
+        break;
+      }
+    }
+    temp = temp->next;
+  }
 }
