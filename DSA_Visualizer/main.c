@@ -224,17 +224,16 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                         panelButtons[*activePanel][j].position.w,
                         panelButtons[*activePanel][j].position.h, mouseX,
                         mouseY)) {
-                 panelTexts[*activePanel][j]);
-                 panelButtons[*activePanel][j].isCLicked = 1;
+          panelButtons[*activePanel][j].isCLicked = 1;
 
-                 if (j == 0 && (*activePanel == 0 || *activePanel == 1)) {
-                   popupPos = 0;
-                   popupBuffer[0] = '\0';
-                   ShowPopPanel(&valueInputPanel);
-                   HandlePopPanelInput(&valueInputPanel, "Type Here");
-                 }
+          if (j == 0 && (*activePanel == 0 || *activePanel == 1)) {
+            popupPos = 0;
+            popupBuffer[0] = '\0';
+            ShowPopPanel(&valueInputPanel);
+            HandlePopPanelInput(&valueInputPanel, "");
+          }
 
-                 PlayAudio(resources, 1);
+          PlayAudio(resources, 1);
         } else {
           panelButtons[*activePanel][j].isCLicked = 0;
         }
