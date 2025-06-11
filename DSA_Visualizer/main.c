@@ -17,6 +17,9 @@
 
 bool running = true;
 
+static char popupBuffer[6] = {0};
+static int popupPos = 0;
+
 void InitializeMainButtons(Res *resources, struct Button *buttons, int count);
 void InitializePanels(Res *resources, struct Panel ***panels,
                       struct Button panelButtons[][5], int numOfButtons);
@@ -86,7 +89,6 @@ int main(void) {
   return 0;
 }
 
-// initialization functions
 void InitializeMainButtons(Res *resources, struct Button *buttons, int count) {
   const char *buttonTexts[] = {"Linked List", "Stack", "Queue"};
   const int fontSizes[] = {22, 30, 29};
@@ -164,7 +166,6 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
   if (event->type == SDL_MOUSEBUTTONDOWN) {
     if (valueInputPanel.isActive) {
       if (IsAddButtonClicked(&valueInputPanel, mouseX, mouseY)) {
-        printf("Add button clicked! Input: %s\n", valueInputPanel.input);
 
         if (valueInputPanel.input && strlen(valueInputPanel.input) > 0) {
           int value = atoi(valueInputPanel.input);
@@ -176,6 +177,9 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
           }
         }
 
+        popupPos = 0;
+        popupBuffer[0] = '\0';
+        HandlePopPanelInput(&valueInputPanel, "");
         HidePopPanel(&valueInputPanel);
         return;
       }
@@ -188,28 +192,18 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
       if (!IsInsideBox(valueInputPanel.position.x, valueInputPanel.position.y,
                        valueInputPanel.position.w, valueInputPanel.position.h,
                        mouseX, mouseY)) {
+        popupPos = 0;
+        popupBuffer[0] = '\0';
         HidePopPanel(&valueInputPanel);
         return;
       }
     }
-
-    // Original input field handling
-    if (IsInsideBox(inputField->bgPos.x, inputField->bgPos.y,
-                    inputField->bgPos.w, inputField->bgPos.h, mouseX, mouseY)) {
-      inputField->active = true;
-    } else {
-      inputField->active = false;
-    }
-
-    // handle main button clicks
     for (int i = 0; i < numOfButtons; i++) {
       if (buttons[i].isActive &&
           IsInsideBox(buttons[i].position.x, buttons[i].position.y,
                       buttons[i].position.w, buttons[i].position.h, mouseX,
                       mouseY)) {
-        printf("%s button was clicked!\n", buttonTexts[i]);
         PlayAudio(resources, 1);
-        // deactivate all panels
         for (int k = 0; k < numOfButtons; k++) {
           panels[k]->isActive = 0;
           buttons[k].isCLicked = 0;
@@ -230,16 +224,17 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                         panelButtons[*activePanel][j].position.w,
                         panelButtons[*activePanel][j].position.h, mouseX,
                         mouseY)) {
-          printf("Panel button '%s' was clicked!\n",
                  panelTexts[*activePanel][j]);
-          panelButtons[*activePanel][j].isCLicked = 1;
+                 panelButtons[*activePanel][j].isCLicked = 1;
 
-          if (j == 0 && (*activePanel == 0 || *activePanel == 1)) {
-            ShowPopPanel(&valueInputPanel);
-            HandlePopPanelInput(&valueInputPanel, "Type Here");
-          }
+                 if (j == 0 && (*activePanel == 0 || *activePanel == 1)) {
+                   popupPos = 0;
+                   popupBuffer[0] = '\0';
+                   ShowPopPanel(&valueInputPanel);
+                   HandlePopPanelInput(&valueInputPanel, "Type Here");
+                 }
 
-          PlayAudio(resources, 1);
+                 PlayAudio(resources, 1);
         } else {
           panelButtons[*activePanel][j].isCLicked = 0;
         }
@@ -258,16 +253,11 @@ void HandleKeyboardInput(Res *resources, SDL_Event *event,
                          struct InputField *inputField, char *inputBuffer,
                          int *inputPos) {
   SDL_Keycode key = event->key.keysym.sym;
-
   if (key == SDLK_BACKSLASH && listHead) {
     listHead->isMoving = true;
   }
-
   if (valueInputPanel.isActive && valueInputPanel.inputField &&
       valueInputPanel.inputField->active) {
-    static char popupBuffer[32] = {0};
-    static int popupPos = 0;
-
     if (key >= SDLK_0 && key <= SDLK_9 && popupPos < 31) {
       popupBuffer[popupPos++] = (char)key;
       popupBuffer[popupPos] = '\0';
@@ -285,15 +275,14 @@ void HandleKeyboardInput(Res *resources, SDL_Event *event,
           PlayAudio(resources, 2);
         }
       }
-      // Reset popup state BEFORE hiding the panel
       popupPos = 0;
       popupBuffer[0] = '\0';
-      HandlePopPanelInput(&valueInputPanel, ""); // Clear the panel's display
-      HidePopPanel(&valueInputPanel);            // Then hide it
+      HandlePopPanelInput(&valueInputPanel, "");
+      HidePopPanel(&valueInputPanel);
+
     } else if (key == SDLK_ESCAPE) {
       popupPos = 0;
       popupBuffer[0] = '\0';
-
       HandlePopPanelInput(&valueInputPanel, "");
       HidePopPanel(&valueInputPanel);
     }

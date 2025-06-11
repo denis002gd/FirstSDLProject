@@ -327,12 +327,13 @@ void UpdateInput(Res *resources, struct InputField *inputField,
   SDL_RenderCopy(resources->renderer, inputField->textTexture, NULL,
                  &inputField->position);
 }
-int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
-             int index) {
+int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index,
+             int value) {
   if (index > MAXNODES) {
-    printf("Excceded max amount of nodes!\n");
+    printf("Exceeded max amount of nodes!\n");
     return 1;
   }
+
   node->texture = IMG_LoadTexture(resurces->renderer, "textures/NodeV.png");
   node->SelectedTexture =
       IMG_LoadTexture(resurces->renderer, "textures/NodeSelect.png");
@@ -340,27 +341,62 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect,
     printf("Failed at loading textures, Error: %s\n", IMG_GetError());
     return 1;
   }
+
   node->rect = rect;
-  node->font = TTF_OpenFont(FONT_PATH, 28);
+  node->font = TTF_OpenFont(FONT_PATH, 34);
+  if (!node->font) {
+    printf("Failed to load font: %s\n", TTF_GetError());
+    return 1;
+  }
+
   SDL_Surface *surf = TTF_RenderText_Solid(
       node->font, strlen(text) ? text : " ", (SDL_Color){0, 0, 0, 255});
+  if (!surf) {
+    printf("Failed to create index text surface: %s\n", TTF_GetError());
+    return 1;
+  }
   node->textTexture = SDL_CreateTextureFromSurface(resurces->renderer, surf);
   SDL_FreeSurface(surf);
-  SDL_Rect textRect = {rect.x + (rect.w / 4), rect.y - (rect.h / 3), rect.w / 2,
-                       rect.h / 3};
+
+  SDL_Rect textRect = {rect.x, rect.y - 35, rect.w, 30};
   node->textRect = textRect;
+
+  char content[20];
+  sprintf(content, "%d", value);
+
+  SDL_Surface *contSurf =
+      TTF_RenderText_Solid(node->font, content, (SDL_Color){0, 0, 0, 255});
+  if (!contSurf) {
+    printf("Failed to create value text surface: %s\n", TTF_GetError());
+    return 1;
+  }
+
+  // Use actual surface dimensions for proper text sizing
+  int contentWidth = contSurf->w;
+  int contentHeight = contSurf->h;
+
+  node->contentTextTexture =
+      SDL_CreateTextureFromSurface(resurces->renderer, contSurf);
+  SDL_FreeSurface(contSurf);
+
+  SDL_Rect contTextRect = {rect.x + (rect.w - contentWidth) / 2,
+                           rect.y + (rect.h - contentHeight) / 2, contentWidth,
+                           contentHeight};
+  node->contentTextRect = contTextRect;
+
   node->position = (Vector2){rect.x, rect.y};
   node->next = NULL;
   node->isMoving = false;
   node->isSelected = false;
-  if (!node->textTexture) {
+
+  if (!node->textTexture || !node->contentTextTexture) {
     printf("Failed at loading text textures, Error: %s\n", SDL_GetError());
     return 1;
   }
 
   return 0;
 }
-// this function rescales the nodes based on number
+
 void UpdateList(Res *resources, Node_v *listHead) {
   if (!listHead)
     return;
@@ -371,26 +407,37 @@ void UpdateList(Res *resources, Node_v *listHead) {
   int newNodeHeight = NODE_HEIGHT - ((resources->nodesNumber - 5) * 3);
   int newSpacing = (availableWidth - (resources->nodesNumber * newNodeWidth)) /
                    (resources->nodesNumber + 1);
+
+  if (newNodeWidth < 50)
+    newNodeWidth = 50;
+  if (newNodeHeight < 50)
+    newNodeHeight = 50;
+  if (newSpacing < 5)
+    newSpacing = 5;
+
   current = listHead;
   int index = 0;
-  while (current && index < resources->nodesNumber) {
 
+  // Update positions and sizes
+  while (current && index < resources->nodesNumber) {
     current->rect.w = newNodeWidth;
     current->rect.h = newNodeHeight;
 
     int reversedIndex = resources->nodesNumber - 1 - index;
     current->position.x =
         newSpacing + (reversedIndex * (newNodeWidth + newSpacing));
-    current->position.y = current->position.y; // Keep original Y from spawn
+    current->position.y = current->position.y;
 
-    current->textRect.w = NODE_WIDTH - ((resources->nodesNumber) * 6);
-    current->textRect.h = (NODE_HEIGHT - 40) - ((resources->nodesNumber) * 2);
+    current->textRect.w = newNodeWidth;
+    current->textRect.h = 30;
+    current->textRect.x = current->position.x;
+    current->textRect.y = current->position.y - 35;
 
-    current->textRect.x =
-        current->rect.x + (current->rect.w - current->textRect.w) / 2;
-    current->textRect.y =
-        (current->rect.y + (current->rect.h - current->textRect.h) / 2) -
-        current->rect.h / 1.5;
+    // Keep original content text dimensions, just update position for centering
+    current->contentTextRect.x =
+        current->position.x + (newNodeWidth - current->contentTextRect.w) / 2;
+    current->contentTextRect.y =
+        current->position.y + (newNodeHeight - current->contentTextRect.h) / 2;
 
     current = current->next;
     index++;
@@ -398,14 +445,26 @@ void UpdateList(Res *resources, Node_v *listHead) {
 
   current = listHead;
   while (current) {
+    if (current != NULL && current->isMoving) {
+      Vector2 targetPos = {current->position.x, 200};
+      current->position =
+          V2Lerp(current->position, targetPos, 40, &current->isMoving);
+    }
 
     current->rect.x = current->position.x;
     current->rect.y = current->position.y;
-    if (current != NULL && current->isMoving) {
-      current->position = V2Lerp(current->position, (Vector2){500, 200}, 40,
-                                 &current->isMoving);
-    }
-    if (current->texture && current->textTexture) {
+
+    current->textRect.x = current->position.x;
+    current->textRect.y = current->position.y - 35;
+    current->contentTextRect.x =
+        current->position.x +
+        (current->rect.w - current->contentTextRect.w) / 2;
+    current->contentTextRect.y =
+        current->position.y +
+        (current->rect.h - current->contentTextRect.h) / 2;
+
+    if (current->texture && current->textTexture &&
+        current->contentTextTexture) {
       if (!current->isSelected) {
         SDL_RenderCopy(resources->renderer, current->texture, NULL,
                        &current->rect);
@@ -413,13 +472,15 @@ void UpdateList(Res *resources, Node_v *listHead) {
         SDL_RenderCopy(resources->renderer, current->SelectedTexture, NULL,
                        &current->rect);
       }
+
       SDL_RenderCopy(resources->renderer, current->textTexture, NULL,
                      &current->textRect);
+      SDL_RenderCopy(resources->renderer, current->contentTextTexture, NULL,
+                     &current->contentTextRect);
     }
     current = current->next;
   }
 }
-
 void FreeNodesInfo(Node_v **listHead) {
   if (!listHead || !*listHead) {
     return;
@@ -433,8 +494,14 @@ void FreeNodesInfo(Node_v **listHead) {
     if (temp->textTexture) {
       SDL_DestroyTexture(temp->textTexture);
     }
+    if (temp->contentTextTexture) {
+      SDL_DestroyTexture(temp->contentTextTexture);
+    }
     if (temp->texture) {
       SDL_DestroyTexture(temp->texture);
+    }
+    if (temp->SelectedTexture) {
+      SDL_DestroyTexture(temp->SelectedTexture);
     }
     if (temp->font) {
       TTF_CloseFont(temp->font);
@@ -443,7 +510,6 @@ void FreeNodesInfo(Node_v **listHead) {
   }
   *listHead = NULL;
 }
-
 Node_v *AddNodeToList(Res *resources, Node_v **listHead, int value) {
   Node_v *nodeVis = malloc(sizeof(Node_v));
   if (!nodeVis) {
@@ -477,8 +543,8 @@ Node_v *AddNodeToList(Res *resources, Node_v **listHead, int value) {
   char name[20];
   sprintf(name, "Node %d", nodeVis->nodeIndex);
 
-  if (InitNode(nodeVis, resources, name, nodeVis->rect, nodeVis->nodeIndex) !=
-      0) {
+  if (InitNode(nodeVis, resources, name, nodeVis->rect, nodeVis->nodeIndex != 0,
+               value)) {
     free(nodeVis);
     resources->nodesNumber--;
     return NULL;

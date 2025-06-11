@@ -130,7 +130,8 @@ int InitInputField(Res *resurces, struct InputField *InputField, SDL_Rect rect,
                    const char *textFont, char *text, const int textSize);
 void UpdateInput(Res *resurces, struct InputField *InputField, char *newInput);
 //========Nodes==========================
-int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index);
+int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index,
+             int value);
 void UpdateList(Res *resources, Node_v *node_v);
 void FreeNodesInfo(Node_v **node);
 Node_v *AddNodeToList(Res *resources, Node_v **Root, int value);
