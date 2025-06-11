@@ -53,6 +53,16 @@ struct Panel {
   int buttonsCount;
   struct Button buttons[];
 };
+struct PopupPanel {
+  Vector2 Vposition;
+  SDL_Texture *background;
+  SDL_Rect position;
+  int isActive;
+  struct Button addButton;
+  struct InputField *inputField;
+  char *input;
+};
+
 struct InputField {
   char *input;
   bool active;
@@ -80,6 +90,10 @@ typedef struct NodeVisual {
   TTF_Font *font;
   SDL_Texture *textTexture;
   SDL_Rect textRect;
+
+  char *contentText;
+  SDL_Texture *contentTextTexture;
+  SDL_Rect contentTextRect;
 } Node_v;
 //=========Essentials====================
 int InitProgram(Res *resources);
@@ -98,6 +112,19 @@ int InitPanel(Res *res, struct Panel *panel);
 
 void RenderPanel(Res *res, struct Panel *panel);
 void CleanupPanel(struct Panel *panel);
+//=========PopupPanels===================
+int InitPopPanel(Res *res, struct PopupPanel *panel, int x, int y, int width,
+                 int height);
+void RenderPopPanel(Res *res, struct PopupPanel *panel);
+void CleanupPopPanel(struct PopupPanel *panel);
+
+// Helper functions:
+void ShowPopPanel(struct PopupPanel *panel);
+void HidePopPanel(struct PopupPanel *panel);
+void HandlePopPanelInput(struct PopupPanel *panel, char *newInput);
+bool IsAddButtonClicked(struct PopupPanel *panel, int mouseX, int mouseY);
+bool IsInputFieldClicked(struct PopupPanel *panel, int mouseX, int mouseY);
+
 //========Input==========================
 int InitInputField(Res *resurces, struct InputField *InputField, SDL_Rect rect,
                    const char *textFont, char *text, const int textSize);

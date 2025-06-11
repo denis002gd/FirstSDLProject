@@ -209,33 +209,65 @@ int InitInputField(Res *resurces, struct InputField *InputField, SDL_Rect rect,
   }
 
   InputField->font = TTF_OpenFont(textFont, textSize);
-  // just white
+  if (!InputField->font) {
+    printf("Failed to load font %s: %s\n", textFont, TTF_GetError());
+    return -1;
+  }
+
   SDL_Color white = {0, 0, 0, 255};
   InputField->textColor = white;
   InputField->position = rect;
   InputField->bgPos = (SDL_Rect){rect.x - RECT_PADDING, rect.y - RECT_PADDING,
                                  (rect.w * 2), (rect.h * 2)};
-  InputField->input = strdup(text);
-  SDL_Surface *surf = TTF_RenderText_Solid(InputField->font, InputField->input,
-                                           InputField->textColor);
+
+  InputField->input = strdup(text ? text : "");
+  if (!InputField->input) {
+    printf("Failed to allocate memory for input text\n");
+    TTF_CloseFont(InputField->font);
+    return -1;
+  }
+
+  SDL_Surface *surf = TTF_RenderText_Solid(
+      InputField->font, strlen(InputField->input) > 0 ? InputField->input : " ",
+      InputField->textColor);
+  if (!surf) {
+    printf("Failed to create text surface: %s\n", TTF_GetError());
+    free(InputField->input);
+    TTF_CloseFont(InputField->font);
+    return -1;
+  }
+
   InputField->textTexture =
       SDL_CreateTextureFromSurface(resurces->renderer, surf);
+  SDL_FreeSurface(surf);
+
+  if (!InputField->textTexture) {
+    printf("Failed to create text texture: %s\n", SDL_GetError());
+    free(InputField->input);
+    TTF_CloseFont(InputField->font);
+    return -1;
+  }
 
   InputField->background =
       IMG_LoadTexture(resurces->renderer, "textures/frame.png");
   InputField->deselectedBG =
       IMG_LoadTexture(resurces->renderer, "textures/frameUnactive.png");
-  if (InputField->background == NULL || InputField->deselectedBG == NULL) {
-    printf("Error at loading input field background \n");
-  }
-  SDL_FreeSurface(surf);
-  if (InputField->textTexture == NULL) {
-    fprintf(stdout, "Input field texture error: %s \n", SDL_GetError());
+
+  if (!InputField->background || !InputField->deselectedBG) {
+    printf("Error at loading input field background textures\n");
+    if (InputField->textTexture)
+      SDL_DestroyTexture(InputField->textTexture);
+    if (InputField->background)
+      SDL_DestroyTexture(InputField->background);
+    if (InputField->deselectedBG)
+      SDL_DestroyTexture(InputField->deselectedBG);
+    free(InputField->input);
+    TTF_CloseFont(InputField->font);
     return -1;
   }
+
   return 0;
 }
-// TODO: make the bg rect dynamic based on the input size
 
 void UpdateInput(Res *resources, struct InputField *inputField,
                  char *newInput) {
@@ -488,4 +520,171 @@ void CheckList(Node_v *node, int mouseX, int mouseY, bool isClick) {
     }
     temp = temp->next;
   }
+}
+int InitPopPanel(Res *res, struct PopupPanel *panel, int x, int y, int width,
+                 int height) {
+  if (!panel) {
+    printf("PopupPanel pointer is NULL!\n");
+    return 1;
+  }
+
+  panel->position = (SDL_Rect){x, y, width, height};
+  panel->Vposition = (Vector2){x, y};
+  panel->isActive = 0;
+
+  panel->background = IMG_LoadTexture(res->renderer, "textures/filePanel.png");
+  if (!panel->background) {
+    printf("Failed at loading popup panel texture, Error: %s\n",
+           IMG_GetError());
+    return 1;
+  }
+
+  panel->inputField = malloc(sizeof(struct InputField));
+  if (!panel->inputField) {
+    printf("Failed to allocate memory for input field!\n");
+    return 1;
+  }
+
+  SDL_Rect inputRect = {x + BUTTON_SPACING * 2, y + BUTTON_SPACING * 2,
+                        width - (BUTTON_SPACING * 4), 60};
+  panel->input = strdup("Type Here");
+  if (InitInputField(res, panel->inputField, inputRect, FONT_PATH, panel->input,
+                     32) != 0) {
+    printf("Failed to initialize input field!\n");
+    free(panel->inputField);
+    return 1;
+  }
+
+  panel->addButton = (struct Button){
+      .background = NULL,
+      .selectedBG = NULL,
+      .isActive = 1,
+      .isCLicked = 0,
+      .position = {x + BUTTON_SPACING * 2,
+                   y + height - BUTTON_HEIGHT - BUTTON_SPACING * 2,
+                   width - (BUTTON_SPACING * 4), BUTTON_HEIGHT},
+      .textColor = {0, 0, 0, 255},
+      .text = NULL,
+      .font = NULL,
+      .textTexture = NULL,
+      .textRect = {0}};
+
+  if (InitButton(res, &panel->addButton, "textures/buttonReady.png",
+                 "textures/button.png") != 0) {
+    printf("Failed to initialize add button!\n");
+    return 1;
+  }
+
+  InitButtonText(res, &panel->addButton, "Add Value", 28, FONT_PATH);
+
+  return 0;
+}
+
+void RenderPopPanel(Res *res, struct PopupPanel *panel) {
+  if (!panel || !panel->isActive) {
+    return;
+  }
+  SDL_RenderCopy(res->renderer, panel->background, 0, &panel->position);
+  if (panel->inputField && panel->input) {
+    UpdateInput(res, panel->inputField, panel->input);
+  }
+  DrawButton(res, &panel->addButton);
+}
+
+void CleanupPopPanel(struct PopupPanel *panel) {
+  if (!panel) {
+    return;
+  }
+
+  if (panel->background) {
+    SDL_DestroyTexture(panel->background);
+    panel->background = NULL;
+  }
+
+  if (panel->inputField) {
+    if (panel->inputField->textTexture) {
+      SDL_DestroyTexture(panel->inputField->textTexture);
+    }
+    if (panel->inputField->background) {
+      SDL_DestroyTexture(panel->inputField->background);
+    }
+    if (panel->inputField->deselectedBG) {
+      SDL_DestroyTexture(panel->inputField->deselectedBG);
+    }
+    if (panel->inputField->font) {
+      TTF_CloseFont(panel->inputField->font);
+    }
+
+    if (panel->inputField->input) {
+      free(panel->inputField->input);
+      panel->inputField->input = NULL;
+    }
+
+    free(panel->inputField);
+    panel->inputField = NULL;
+  }
+
+  if (panel->input) {
+    free(panel->input);
+    panel->input = NULL;
+  }
+
+  CleanUpButton(&panel->addButton);
+}
+void ShowPopPanel(struct PopupPanel *panel) {
+  if (panel) {
+    panel->isActive = 1;
+    if (panel->inputField) {
+      panel->inputField->active = 1;
+    }
+  }
+}
+
+void HidePopPanel(struct PopupPanel *panel) {
+  if (panel) {
+    panel->isActive = 0;
+    if (panel->inputField) {
+      panel->inputField->input = strdup("");
+      panel->inputField->active = 0;
+    }
+  }
+}
+
+void HandlePopPanelInput(struct PopupPanel *panel, char *newInput) {
+  if (!panel || !newInput) {
+    return;
+  }
+
+  if (panel->input) {
+    free(panel->input);
+    panel->input = NULL;
+  }
+
+  panel->input = strdup(newInput);
+
+  if (panel->inputField) {
+    if (panel->inputField->input) {
+      free(panel->inputField->input);
+      panel->inputField->input = NULL;
+    }
+    panel->inputField->input = strdup(newInput);
+  }
+}
+bool IsAddButtonClicked(struct PopupPanel *panel, int mouseX, int mouseY) {
+  if (!panel || !panel->isActive) {
+    return false;
+  }
+
+  return IsInsideBox(panel->addButton.position.x, panel->addButton.position.y,
+                     panel->addButton.position.w, panel->addButton.position.h,
+                     mouseX, mouseY);
+}
+
+bool IsInputFieldClicked(struct PopupPanel *panel, int mouseX, int mouseY) {
+  if (!panel || !panel->isActive || !panel->inputField) {
+    return false;
+  }
+
+  return IsInsideBox(panel->position.x, panel->position.y, panel->position.w,
+                     panel->position.h, mouseX, mouseY);
 }

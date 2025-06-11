@@ -35,6 +35,8 @@ void CleanupAll(struct Button *buttons, struct Panel **panels,
                 Res *resources);
 Node_v *listHead = NULL;
 Vector2 middle = {500, 250};
+struct PopupPanel valueInputPanel;
+
 int main(void) {
   srand(time(NULL));
   Res resources = {0};
@@ -49,8 +51,7 @@ int main(void) {
   InitializeMainButtons(&resources, mainButtons, numOfButtons);
   InitializePanels(&resources, &panels, panelButtons, numOfButtons);
 
-  InitInputField(&resources, &inputField, (SDL_Rect){700, 850, 50, 100},
-                 FONT_PATH, "Type here", 50);
+  InitPopPanel(&resources, &valueInputPanel, 350, 780, 250, 190);
 
   int activePanel = -1;
   int inputPos = 0;
@@ -80,7 +81,7 @@ int main(void) {
                 listHead, activePanel);
     SDL_Delay(REFRESHRATE);
   }
-
+  CleanupPopPanel(&valueInputPanel);
   CleanupAll(mainButtons, panels, panelButtons, &listHead, &resources);
   return 0;
 }
@@ -159,9 +160,40 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
   SDL_GetMouseState(&mouseX, &mouseY);
 
   CheckList(listHead, mouseX, mouseY, (event->type == SDL_MOUSEBUTTONDOWN));
+
   if (event->type == SDL_MOUSEBUTTONDOWN) {
-    // TODO: inplement data insertion into nodes
-    //  handle input field click
+    if (valueInputPanel.isActive) {
+      if (IsAddButtonClicked(&valueInputPanel, mouseX, mouseY)) {
+        printf("Add button clicked! Input: %s\n", valueInputPanel.input);
+
+        if (valueInputPanel.input && strlen(valueInputPanel.input) > 0) {
+          int value = atoi(valueInputPanel.input);
+          Node_v *newNode = AddNodeToList(resources, &listHead, value);
+          if (newNode) {
+            PlayAudio(resources, 3);
+          } else {
+            PlayAudio(resources, 2);
+          }
+        }
+
+        HidePopPanel(&valueInputPanel);
+        return;
+      }
+
+      if (IsInputFieldClicked(&valueInputPanel, mouseX, mouseY)) {
+        valueInputPanel.inputField->active = true;
+        return;
+      }
+
+      if (!IsInsideBox(valueInputPanel.position.x, valueInputPanel.position.y,
+                       valueInputPanel.position.w, valueInputPanel.position.h,
+                       mouseX, mouseY)) {
+        HidePopPanel(&valueInputPanel);
+        return;
+      }
+    }
+
+    // Original input field handling
     if (IsInsideBox(inputField->bgPos.x, inputField->bgPos.y,
                     inputField->bgPos.w, inputField->bgPos.h, mouseX, mouseY)) {
       inputField->active = true;
@@ -177,7 +209,7 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                       mouseY)) {
         printf("%s button was clicked!\n", buttonTexts[i]);
         PlayAudio(resources, 1);
-        // aeactivate all panels
+        // deactivate all panels
         for (int k = 0; k < numOfButtons; k++) {
           panels[k]->isActive = 0;
           buttons[k].isCLicked = 0;
@@ -190,21 +222,7 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
         break;
       }
     }
-    // button for adding nodes
-    if (IsInsideBox(panelButtons[1][0].position.x,
-                    panelButtons[1][0].position.y,
-                    panelButtons[1][0].position.w,
-                    panelButtons[1][0].position.h, mouseX, mouseY)) {
-      Node_v *newNode =
-          AddNodeToList(resources, &listHead, resources->nodesNumber);
-      if (resources->nodesNumber < MAXNODES) {
-        PlayAudio(resources, 3);
-      } else {
-        PlayAudio(resources, 2);
-      }
-    }
 
-    // handle panel button clicks
     if (*activePanel >= 0 && panels[*activePanel]->isActive) {
       for (int j = 0; j < panelButtonsCount[*activePanel]; j++) {
         if (IsInsideBox(panelButtons[*activePanel][j].position.x,
@@ -215,13 +233,19 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
           printf("Panel button '%s' was clicked!\n",
                  panelTexts[*activePanel][j]);
           panelButtons[*activePanel][j].isCLicked = 1;
+
+          if (j == 0 && (*activePanel == 0 || *activePanel == 1)) {
+            ShowPopPanel(&valueInputPanel);
+            HandlePopPanelInput(&valueInputPanel, "Type Here");
+          }
+
+          PlayAudio(resources, 1);
         } else {
           panelButtons[*activePanel][j].isCLicked = 0;
         }
       }
     }
   } else if (event->type == SDL_MOUSEBUTTONUP) {
-    // Reset all panel button states
     for (int i = 0; i < numOfButtons; i++) {
       for (int j = 0; j < panelButtonsCount[i]; j++) {
         panelButtons[i][j].isCLicked = 0;
@@ -233,33 +257,50 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
 void HandleKeyboardInput(Res *resources, SDL_Event *event,
                          struct InputField *inputField, char *inputBuffer,
                          int *inputPos) {
-
   SDL_Keycode key = event->key.keysym.sym;
-  if (key == SDLK_BACKSLASH) {
+
+  if (key == SDLK_BACKSLASH && listHead) {
     listHead->isMoving = true;
   }
 
-  if (!inputField->active)
-    return;
-  if (key >= SDLK_0 && key <= SDLK_9 && *inputPos < 5) {
-    inputBuffer[(*inputPos)++] = (char)key;
-    inputBuffer[*inputPos] = '\0';
-    printf("Input: %s\n", inputBuffer);
-  } else if (key == SDLK_BACKSPACE && *inputPos > 0) {
+  if (valueInputPanel.isActive && valueInputPanel.inputField &&
+      valueInputPanel.inputField->active) {
+    static char popupBuffer[32] = {0};
+    static int popupPos = 0;
 
-    inputBuffer[--(*inputPos)] = '\0';
-    printf("Input: %s\n", inputBuffer);
-  } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
-    inputField->active = false;
-    Node_v *newNode =
-        AddNodeToList(resources, &listHead, resources->nodesNumber);
-    if (newNode) {
-      printf("Added new node from input\n");
+    if (key >= SDLK_0 && key <= SDLK_9 && popupPos < 31) {
+      popupBuffer[popupPos++] = (char)key;
+      popupBuffer[popupPos] = '\0';
+      HandlePopPanelInput(&valueInputPanel, popupBuffer);
+    } else if (key == SDLK_BACKSPACE && popupPos > 0) {
+      popupBuffer[--popupPos] = '\0';
+      HandlePopPanelInput(&valueInputPanel, popupBuffer);
+    } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+      if (strlen(popupBuffer) > 0) {
+        int value = atoi(popupBuffer);
+        Node_v *newNode = AddNodeToList(resources, &listHead, value);
+        if (newNode) {
+          PlayAudio(resources, 3);
+        } else {
+          PlayAudio(resources, 2);
+        }
+      }
+      // Reset popup state BEFORE hiding the panel
+      popupPos = 0;
+      popupBuffer[0] = '\0';
+      HandlePopPanelInput(&valueInputPanel, ""); // Clear the panel's display
+      HidePopPanel(&valueInputPanel);            // Then hide it
+    } else if (key == SDLK_ESCAPE) {
+      popupPos = 0;
+      popupBuffer[0] = '\0';
+
+      HandlePopPanelInput(&valueInputPanel, "");
+      HidePopPanel(&valueInputPanel);
     }
+    return;
   }
-
-  inputField->input = inputBuffer;
 }
+
 void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
                  struct Button panelButtons[][5], struct InputField *inputField,
                  Node_v *listHead, int activePanel) {
@@ -269,7 +310,6 @@ void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
   SDL_SetRenderDrawColor(resources->renderer, 253, 240, 213, 0);
   SDL_RenderClear(resources->renderer);
 
-  // render all nodes in the list
   UpdateList(resources, listHead);
 
   for (int i = 0; i < numOfButtons; i++) {
@@ -285,9 +325,12 @@ void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
       panelButtons[activePanel][j].isActive = 0;
     }
   }
-  UpdateInput(resources, inputField, inputField->input);
+
+  RenderPopPanel(resources, &valueInputPanel);
+
   SDL_RenderPresent(resources->renderer);
 }
+
 void CleanupAll(struct Button *buttons, struct Panel **panels,
                 struct Button panelButtons[][5], Node_v **listHead,
                 Res *resources) {
