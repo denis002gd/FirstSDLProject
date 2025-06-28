@@ -17,9 +17,9 @@
 
 bool running = true;
 
-static char popupBuffer[6] = {0};
+static char popupBuffer[5] = {0};
 static int popupPos = 0;
-
+double deltaTime = 0;
 void InitializeMainButtons(Res *resources, struct Button *buttons, int count);
 void InitializePanels(Res *resources, struct Panel ***panels,
                       struct Button panelButtons[][5], int numOfButtons);
@@ -55,12 +55,18 @@ int main(void) {
   InitializePanels(&resources, &panels, panelButtons, numOfButtons);
 
   InitPopPanel(&resources, &valueInputPanel, 350, 780, 250, 190);
-
+  Uint64 last = 0;
+  Uint64 now = SDL_GetPerformanceCounter();
+  double seconds = 0;
   int activePanel = -1;
   int inputPos = 0;
   char inputBuffer[6] = {0};
 
   while (running) {
+    last = now;
+    now = SDL_GetPerformanceCounter();
+    deltaTime = (double)((now - last) * 1000) / SDL_GetPerformanceFrequency();
+    seconds += (deltaTime / 1000);
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
@@ -82,6 +88,7 @@ int main(void) {
 
     RenderScene(&resources, mainButtons, panels, panelButtons, &inputField,
                 listHead, activePanel);
+
     SDL_Delay(REFRESHRATE);
   }
   CleanupPopPanel(&valueInputPanel);
@@ -179,7 +186,7 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
 
         popupPos = 0;
         popupBuffer[0] = '\0';
-        HandlePopPanelInput(&valueInputPanel, "");
+        HandlePopPanelInput(&valueInputPanel, "Type Here");
         HidePopPanel(&valueInputPanel);
         return;
       }
@@ -230,7 +237,7 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
             popupPos = 0;
             popupBuffer[0] = '\0';
             ShowPopPanel(&valueInputPanel);
-            HandlePopPanelInput(&valueInputPanel, "");
+            HandlePopPanelInput(&valueInputPanel, "Type here");
           }
 
           PlayAudio(resources, 1);
@@ -276,13 +283,13 @@ void HandleKeyboardInput(Res *resources, SDL_Event *event,
       }
       popupPos = 0;
       popupBuffer[0] = '\0';
-      HandlePopPanelInput(&valueInputPanel, "");
+      HandlePopPanelInput(&valueInputPanel, "Type here");
       HidePopPanel(&valueInputPanel);
 
     } else if (key == SDLK_ESCAPE) {
       popupPos = 0;
       popupBuffer[0] = '\0';
-      HandlePopPanelInput(&valueInputPanel, "");
+      HandlePopPanelInput(&valueInputPanel, "Type here");
       HidePopPanel(&valueInputPanel);
     }
     return;
@@ -297,9 +304,9 @@ void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
 
   SDL_SetRenderDrawColor(resources->renderer, 253, 240, 213, 0);
   SDL_RenderClear(resources->renderer);
-
+  ScrollBg(resources, deltaTime, 0.1f);
   UpdateList(resources, listHead);
-
+  draw_arrow(resources->renderer, 50, 50, 400, 400, 8, 20, 0xFF0000FF);
   for (int i = 0; i < numOfButtons; i++) {
     if (buttons[i].isActive) {
       DrawButton(resources, &buttons[i]);

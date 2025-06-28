@@ -16,7 +16,7 @@
 #define FONT_PATH "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 #define REFRESHRATE 16
 
-#define MAXNODES 20
+#define MAXNODES 15
 #define NODE_WIDTH 150
 #define NODE_HEIGHT 90
 // h
@@ -26,6 +26,9 @@ typedef struct Resources {
   SDL_Window *window;
   SDL_Renderer *renderer;
   SDL_Color *bgColor;
+  SDL_Texture *bgTexture;
+  int bgW, bgH;
+  int bgOffsetX;
   Mix_Music *clickSFX;
   Mix_Music *errorSFX;
   Mix_Music *spawnSFX;
@@ -136,5 +139,9 @@ void UpdateList(Res *resources, Node_v *node_v);
 void FreeNodesInfo(Node_v **node);
 Node_v *AddNodeToList(Res *resources, Node_v **Root, int value);
 void CheckList(Node_v *node, int mouseX, int mouseY, bool isClick);
-//=======================================
+//========Visuals========================
+void ScrollBg(Res *resurces, double deltaTime, float scrollSpeed);
+
+void draw_arrow(SDL_Renderer *renderer, int ax, int ay, int bx, int by,
+                int thickness, int arrowhead_size, Uint32 color);
 #endif // !DEBUG:

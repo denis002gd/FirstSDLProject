@@ -1,6 +1,7 @@
 #include "render.h"
 #include "list.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
 #include <SDL2/SDL_error.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
@@ -56,6 +57,14 @@ int InitProgram(Res *resources) {
             SDL_GetError());
     return 1;
   }
+  resources->bgTexture =
+      IMG_LoadTexture(resources->renderer, "textures/background.png");
+  if (!resources->bgTexture) {
+    fprintf(stdout, "Failed to loadBackground, Error: \n", IMG_GetError());
+    return 1;
+  }
+  SDL_QueryTexture(resources->bgTexture, NULL, NULL, &resources->bgW,
+                   &resources->bgH);
   // return 0 on success
   return 0;
 }
@@ -65,6 +74,7 @@ void CleanupProgram(Res *resources) {
   SDL_DestroyWindow(resources->window);
   Mix_FreeMusic(resources->clickSFX);
   Mix_FreeMusic(resources->errorSFX);
+  SDL_DestroyTexture(resources->bgTexture);
   IMG_Quit();
   TTF_Quit();
   Mix_Quit();
@@ -330,7 +340,7 @@ void UpdateInput(Res *resources, struct InputField *inputField,
 int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index,
              int value) {
   if (index > MAXNODES) {
-    printf("Exceeded max amount of nodes!\n");
+    printf("Exceded max amount of nodes!\n");
     return 1;
   }
 
@@ -358,7 +368,7 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index,
   node->textTexture = SDL_CreateTextureFromSurface(resurces->renderer, surf);
   SDL_FreeSurface(surf);
 
-  SDL_Rect textRect = {rect.x, rect.y - 35, rect.w, 30};
+  SDL_Rect textRect = {rect.x, rect.y - 40, rect.w, 50};
   node->textRect = textRect;
 
   char content[20];
@@ -371,7 +381,6 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index,
     return 1;
   }
 
-  // Use actual surface dimensions for proper text sizing
   int contentWidth = contSurf->w;
   int contentHeight = contSurf->h;
 
@@ -418,7 +427,7 @@ void UpdateList(Res *resources, Node_v *listHead) {
   current = listHead;
   int index = 0;
 
-  // Update positions and sizes
+  // update positions and sizes
   while (current && index < resources->nodesNumber) {
     current->rect.w = newNodeWidth;
     current->rect.h = newNodeHeight;
@@ -428,16 +437,18 @@ void UpdateList(Res *resources, Node_v *listHead) {
         newSpacing + (reversedIndex * (newNodeWidth + newSpacing));
     current->position.y = current->position.y;
 
-    current->textRect.w = newNodeWidth;
-    current->textRect.h = 30;
+    current->textRect.w = newNodeWidth - (newNodeWidth / 2);
+    current->textRect.h = newNodeHeight - (newNodeHeight / 1.5);
     current->textRect.x = current->position.x;
     current->textRect.y = current->position.y - 35;
 
-    // Keep original content text dimensions, just update position for centering
+    // keep original content text dimensions, just update position for centering
     current->contentTextRect.x =
-        current->position.x + (newNodeWidth - current->contentTextRect.w) / 2;
+        current->position.x +
+        (float)(newNodeWidth - current->contentTextRect.w) / 2;
     current->contentTextRect.y =
-        current->position.y + (newNodeHeight - current->contentTextRect.h) / 2;
+        current->position.y +
+        (float)(newNodeHeight - current->contentTextRect.h) / 2;
 
     current = current->next;
     index++;
@@ -454,14 +465,14 @@ void UpdateList(Res *resources, Node_v *listHead) {
     current->rect.x = current->position.x;
     current->rect.y = current->position.y;
 
-    current->textRect.x = current->position.x;
-    current->textRect.y = current->position.y - 35;
+    current->textRect.x = current->position.x + (int)(newNodeWidth / 4);
+    current->textRect.y = current->position.y - (int)(newNodeHeight / 3);
     current->contentTextRect.x =
         current->position.x +
-        (current->rect.w - current->contentTextRect.w) / 2;
+        (float)(current->rect.w - current->contentTextRect.w) / 2;
     current->contentTextRect.y =
         current->position.y +
-        (current->rect.h - current->contentTextRect.h) / 2;
+        (float)(current->rect.h - current->contentTextRect.h) / 2;
 
     if (current->texture && current->textTexture &&
         current->contentTextTexture) {
@@ -543,7 +554,7 @@ Node_v *AddNodeToList(Res *resources, Node_v **listHead, int value) {
   char name[20];
   sprintf(name, "Node %d", nodeVis->nodeIndex);
 
-  if (InitNode(nodeVis, resources, name, nodeVis->rect, nodeVis->nodeIndex != 0,
+  if (InitNode(nodeVis, resources, name, nodeVis->rect, nodeVis->nodeIndex,
                value)) {
     free(nodeVis);
     resources->nodesNumber--;
@@ -553,7 +564,7 @@ Node_v *AddNodeToList(Res *resources, Node_v **listHead, int value) {
   nodeVis->textRect.x =
       nodeVis->rect.x + (nodeVis->rect.w - nodeVis->textRect.w) / 2;
   nodeVis->textRect.y =
-      nodeVis->rect.y + (nodeVis->rect.h - nodeVis->textRect.h) / 2;
+      nodeVis->rect.y + (nodeVis->rect.h - nodeVis->textRect.h);
 
   nodeVis->position = (Vector2){nodeVis->rect.x, nodeVis->rect.y};
   nodeVis->isMoving = false;
@@ -753,4 +764,74 @@ bool IsInputFieldClicked(struct PopupPanel *panel, int mouseX, int mouseY) {
 
   return IsInsideBox(panel->position.x, panel->position.y, panel->position.w,
                      panel->position.h, mouseX, mouseY);
+}
+
+void ScrollBg(Res *resources, double deltaTime, float scrollSpeed) {
+  resources->bgOffsetX += scrollSpeed * deltaTime;
+
+  if (resources->bgOffsetX >= resources->bgW) {
+    resources->bgOffsetX -= resources->bgW;
+  }
+
+  float scaleX = (float)WIDTH / resources->bgW;
+  float scaleY = (float)HEIGHT / resources->bgH;
+
+  int leftWidth = resources->bgW - (int)resources->bgOffsetX;
+  int scaledLeftWidth = (int)(leftWidth * scaleX);
+
+  SDL_Rect src1 = {(int)resources->bgOffsetX, 0, leftWidth, resources->bgH};
+  SDL_Rect dest1 = {0, 0, scaledLeftWidth, HEIGHT};
+
+  if ((int)resources->bgOffsetX > 0) {
+    int rightWidth = (int)resources->bgOffsetX;
+    int scaledRightWidth = (int)(rightWidth * scaleX);
+
+    SDL_Rect src2 = {0, 0, rightWidth, resources->bgH};
+    SDL_Rect dest2 = {scaledLeftWidth, 0, scaledRightWidth, HEIGHT};
+    SDL_RenderCopy(resources->renderer, resources->bgTexture, &src2, &dest2);
+  }
+
+  SDL_RenderCopy(resources->renderer, resources->bgTexture, &src1, &dest1);
+}
+
+void draw_arrow(SDL_Renderer *renderer, int ax, int ay, int bx, int by,
+                int thickness, int arrowhead_size, Uint32 color) {
+  // Calculate arrow direction and length
+  double dx = bx - ax;
+  double dy = by - ay;
+  double length = sqrt(dx * dx + dy * dy);
+
+  if (length == 0)
+    return;
+
+  // Normalize direction vector
+  double unit_x = dx / length;
+  double unit_y = dy / length;
+
+  // Calculate where the arrow shaft ends (before the arrowhead)
+  int shaft_end_x = (int)(bx - unit_x * arrowhead_size * 0.7);
+  int shaft_end_y = (int)(by - unit_y * arrowhead_size * 0.7);
+
+  // Draw the thick arrow shaft
+  thickLineRGBA(renderer, ax, ay, shaft_end_x, shaft_end_y, thickness,
+                (color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF,
+                color & 0xFF);
+
+  // Calculate arrowhead points
+  double perp_x = -unit_y; // Perpendicular vector
+  double perp_y = unit_x;
+
+  Sint16 arrowhead_x[3] = {
+      (Sint16)bx, // Arrow tip
+      (Sint16)(bx - unit_x * arrowhead_size + perp_x * arrowhead_size * 0.5),
+      (Sint16)(bx - unit_x * arrowhead_size - perp_x * arrowhead_size * 0.5)};
+
+  Sint16 arrowhead_y[3] = {
+      (Sint16)by, // Arrow tip
+      (Sint16)(by - unit_y * arrowhead_size + perp_y * arrowhead_size * 0.5),
+      (Sint16)(by - unit_y * arrowhead_size - perp_y * arrowhead_size * 0.5)};
+
+  // Draw the filled arrowhead
+  filledPolygonRGBA(renderer, arrowhead_x, arrowhead_y, 3, (color >> 24) & 0xFF,
+                    (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
 }
