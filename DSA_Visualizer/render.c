@@ -8,6 +8,7 @@
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_video.h>
@@ -409,14 +410,13 @@ int InitNode(Node_v *node, Res *resurces, char *text, SDL_Rect rect, int index,
 void UpdateList(Res *resources, Node_v *listHead) {
   if (!listHead)
     return;
-
   Node_v *current = listHead;
+  Node_v *previous = listHead;
   int availableWidth = WIDTH;
   int newNodeWidth = NODE_WIDTH - ((resources->nodesNumber - 5) * 6);
   int newNodeHeight = NODE_HEIGHT - ((resources->nodesNumber - 5) * 3);
   int newSpacing = (availableWidth - (resources->nodesNumber * newNodeWidth)) /
                    (resources->nodesNumber + 1);
-
   if (newNodeWidth < 50)
     newNodeWidth = 50;
   if (newNodeHeight < 50)
@@ -426,36 +426,53 @@ void UpdateList(Res *resources, Node_v *listHead) {
 
   current = listHead;
   int index = 0;
-
   // update positions and sizes
   while (current && index < resources->nodesNumber) {
     current->rect.w = newNodeWidth;
     current->rect.h = newNodeHeight;
-
     int reversedIndex = resources->nodesNumber - 1 - index;
     current->position.x =
         newSpacing + (reversedIndex * (newNodeWidth + newSpacing));
     current->position.y = current->position.y;
-
     current->textRect.w = newNodeWidth - (newNodeWidth / 2);
     current->textRect.h = newNodeHeight - (newNodeHeight / 1.5);
     current->textRect.x = current->position.x;
     current->textRect.y = current->position.y - 35;
-
-    // keep original content text dimensions, just update position for centering
     current->contentTextRect.x =
         current->position.x +
         (float)(newNodeWidth - current->contentTextRect.w) / 2;
     current->contentTextRect.y =
         current->position.y +
         (float)(newNodeHeight - current->contentTextRect.h) / 2;
-
     current = current->next;
     index++;
   }
 
+  // reset for second pass
   current = listHead;
+  previous = NULL;
+  Uint32 color;
   while (current) {
+    // arrow positioning and rendering
+    if (previous != NULL) {
+      current->nodePointerArrow.endX = previous->position.x;
+      current->nodePointerArrow.endY =
+          previous->position.y + (float)newNodeHeight / 2;
+      current->nodePointerArrow.startX = current->position.x + newNodeHeight;
+      current->nodePointerArrow.startY =
+          (current->position.y + (float)newNodeHeight / 2);
+      if (current->isSelected) {
+        color = 0xFF0000FF;
+      } else {
+        color = 0x000000FF;
+      }
+
+      draw_arrow(resources->renderer, current->nodePointerArrow.startX,
+                 current->nodePointerArrow.startY,
+                 current->nodePointerArrow.endX, current->nodePointerArrow.endY,
+                 6, 14, color);
+    }
+
     if (current != NULL && current->isMoving) {
       Vector2 targetPos = {current->position.x, 200};
       current->position =
@@ -464,7 +481,6 @@ void UpdateList(Res *resources, Node_v *listHead) {
 
     current->rect.x = current->position.x;
     current->rect.y = current->position.y;
-
     current->textRect.x = current->position.x + (int)(newNodeWidth / 4);
     current->textRect.y = current->position.y - (int)(newNodeHeight / 3);
     current->contentTextRect.x =
@@ -474,6 +490,7 @@ void UpdateList(Res *resources, Node_v *listHead) {
         current->position.y +
         (float)(current->rect.h - current->contentTextRect.h) / 2;
 
+    // Render the node
     if (current->texture && current->textTexture &&
         current->contentTextTexture) {
       if (!current->isSelected) {
@@ -483,12 +500,13 @@ void UpdateList(Res *resources, Node_v *listHead) {
         SDL_RenderCopy(resources->renderer, current->SelectedTexture, NULL,
                        &current->rect);
       }
-
       SDL_RenderCopy(resources->renderer, current->textTexture, NULL,
                      &current->textRect);
       SDL_RenderCopy(resources->renderer, current->contentTextTexture, NULL,
                      &current->contentTextRect);
     }
+
+    previous = current;
     current = current->next;
   }
 }
@@ -796,7 +814,6 @@ void ScrollBg(Res *resources, double deltaTime, float scrollSpeed) {
 
 void draw_arrow(SDL_Renderer *renderer, int ax, int ay, int bx, int by,
                 int thickness, int arrowhead_size, Uint32 color) {
-  // Calculate arrow direction and length
   double dx = bx - ax;
   double dy = by - ay;
   double length = sqrt(dx * dx + dy * dy);
@@ -804,34 +821,29 @@ void draw_arrow(SDL_Renderer *renderer, int ax, int ay, int bx, int by,
   if (length == 0)
     return;
 
-  // Normalize direction vector
   double unit_x = dx / length;
   double unit_y = dy / length;
 
-  // Calculate where the arrow shaft ends (before the arrowhead)
   int shaft_end_x = (int)(bx - unit_x * arrowhead_size * 0.7);
   int shaft_end_y = (int)(by - unit_y * arrowhead_size * 0.7);
 
-  // Draw the thick arrow shaft
   thickLineRGBA(renderer, ax, ay, shaft_end_x, shaft_end_y, thickness,
                 (color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF,
                 color & 0xFF);
 
-  // Calculate arrowhead points
-  double perp_x = -unit_y; // Perpendicular vector
+  double perp_x = -unit_y;
   double perp_y = unit_x;
 
   Sint16 arrowhead_x[3] = {
-      (Sint16)bx, // Arrow tip
+      (Sint16)bx,
       (Sint16)(bx - unit_x * arrowhead_size + perp_x * arrowhead_size * 0.5),
       (Sint16)(bx - unit_x * arrowhead_size - perp_x * arrowhead_size * 0.5)};
 
   Sint16 arrowhead_y[3] = {
-      (Sint16)by, // Arrow tip
+      (Sint16)by,
       (Sint16)(by - unit_y * arrowhead_size + perp_y * arrowhead_size * 0.5),
       (Sint16)(by - unit_y * arrowhead_size - perp_y * arrowhead_size * 0.5)};
 
-  // Draw the filled arrowhead
   filledPolygonRGBA(renderer, arrowhead_x, arrowhead_y, 3, (color >> 24) & 0xFF,
                     (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
 }

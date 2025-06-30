@@ -78,6 +78,14 @@ struct InputField {
   SDL_Texture *background;
   SDL_Texture *deselectedBG;
 };
+typedef struct ArrowVisual {
+  int startX;
+  int startY;
+  int endX;
+  int endY;
+  int thickness;
+} Arrow;
+
 typedef struct NodeVisual {
   Vector2 position;
   bool isMoving;
@@ -97,6 +105,8 @@ typedef struct NodeVisual {
   char *contentText;
   SDL_Texture *contentTextTexture;
   SDL_Rect contentTextRect;
+  bool isAddedToList;
+  Arrow nodePointerArrow;
 } Node_v;
 //=========Essentials====================
 int InitProgram(Res *resources);

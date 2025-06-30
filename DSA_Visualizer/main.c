@@ -1,3 +1,4 @@
+#include "buttons.h"
 #include "list.h"
 #include "render.h"
 #include <SDL2/SDL_events.h>
@@ -16,10 +17,17 @@
 #include <time.h>
 
 bool running = true;
-
+bool startLLtraversal = false;
 static char popupBuffer[5] = {0};
 static int popupPos = 0;
+static int isTraversing = 0;
+static int traverseIndex = 0;
+static double traverseTimer = 0.0;
 double deltaTime = 0;
+Node_v *listHead = NULL;
+Vector2 middle = {500, 250};
+struct PopupPanel valueInputPanel;
+
 void InitializeMainButtons(Res *resources, struct Button *buttons, int count);
 void InitializePanels(Res *resources, struct Panel ***panels,
                       struct Button panelButtons[][5], int numOfButtons);
@@ -36,9 +44,6 @@ void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
 void CleanupAll(struct Button *buttons, struct Panel **panels,
                 struct Button panelButtons[][5], Node_v **listHead,
                 Res *resources);
-Node_v *listHead = NULL;
-Vector2 middle = {500, 250};
-struct PopupPanel valueInputPanel;
 
 int main(void) {
   srand(time(NULL));
@@ -50,23 +55,22 @@ int main(void) {
   struct Panel **panels;
   struct Button panelButtons[numOfButtons][5];
   struct InputField inputField = {0};
-
-  InitializeMainButtons(&resources, mainButtons, numOfButtons);
-  InitializePanels(&resources, &panels, panelButtons, numOfButtons);
-
-  InitPopPanel(&resources, &valueInputPanel, 350, 780, 250, 190);
-  Uint64 last = 0;
-  Uint64 now = SDL_GetPerformanceCounter();
-  double seconds = 0;
   int activePanel = -1;
   int inputPos = 0;
   char inputBuffer[6] = {0};
+
+  InitializeMainButtons(&resources, mainButtons, numOfButtons);
+  InitializePanels(&resources, &panels, panelButtons, numOfButtons);
+  InitPopPanel(&resources, &valueInputPanel, 350, 780, 250, 190);
+
+  Uint64 last = 0;
+  Uint64 now = SDL_GetPerformanceCounter();
 
   while (running) {
     last = now;
     now = SDL_GetPerformanceCounter();
     deltaTime = (double)((now - last) * 1000) / SDL_GetPerformanceFrequency();
-    seconds += (deltaTime / 1000);
+
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
@@ -75,7 +79,6 @@ int main(void) {
         break;
       case SDL_MOUSEBUTTONDOWN:
       case SDL_MOUSEBUTTONUP:
-
         HandleMouseInput(&resources, &event, mainButtons, panels, panelButtons,
                          &inputField, &activePanel, listHead);
         break;
@@ -86,11 +89,41 @@ int main(void) {
       }
     }
 
+    if (isTraversing && listHead != NULL) {
+      traverseTimer += deltaTime;
+      if (traverseTimer >= 1000.0) {
+        traverseTimer = 0.0;
+
+        Node_v *temp = listHead;
+        while (temp != NULL) {
+          temp->isSelected = false;
+          temp = temp->next;
+        }
+
+        if (traverseIndex < resources.nodesNumber) {
+          int targetIndex = resources.nodesNumber - 1 - traverseIndex;
+          temp = listHead;
+          int nodeIndex = 0;
+          while (temp != NULL && nodeIndex < targetIndex) {
+            temp = temp->next;
+            nodeIndex++;
+          }
+          if (temp != NULL) {
+            temp->isSelected = true;
+          }
+          traverseIndex++;
+        } else {
+          isTraversing = 0;
+          traverseIndex = 0;
+        }
+      }
+    }
+
     RenderScene(&resources, mainButtons, panels, panelButtons, &inputField,
                 listHead, activePanel);
-
     SDL_Delay(REFRESHRATE);
   }
+
   CleanupPopPanel(&valueInputPanel);
   CleanupAll(mainButtons, panels, panelButtons, &listHead, &resources);
   return 0;
@@ -156,15 +189,8 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
                       struct Panel **panels, struct Button panelButtons[][5],
                       struct InputField *inputField, int *activePanel,
                       Node_v *list) {
-  static const int numOfButtons = 3;
-  static const int panelButtonsCount[] = {5, 4, 3};
-  static const char *buttonTexts[] = {"Linked List", "Stack", "Queue"};
-  static const char *panelTexts[][5] = {
-      {"Create Node", "Insert Node", "Traverse List", "Sort List",
-       "Delete Node"},
-      {"Push Element", "Pop Element", "Peek", "Clear Stack"},
-      {"Enqueue Item", "Dequeue Item", "Clear Queue"}};
-
+  const int numOfButtons = 3;
+  const int panelButtonsCount[] = {5, 4, 3};
   int mouseX, mouseY;
   SDL_GetMouseState(&mouseX, &mouseY);
 
@@ -173,7 +199,6 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
   if (event->type == SDL_MOUSEBUTTONDOWN) {
     if (valueInputPanel.isActive) {
       if (IsAddButtonClicked(&valueInputPanel, mouseX, mouseY)) {
-
         if (valueInputPanel.input && strlen(valueInputPanel.input) > 0) {
           int value = atoi(valueInputPanel.input);
           Node_v *newNode = AddNodeToList(resources, &listHead, value);
@@ -183,19 +208,16 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
             PlayAudio(resources, 2);
           }
         }
-
         popupPos = 0;
         popupBuffer[0] = '\0';
         HandlePopPanelInput(&valueInputPanel, "Type Here");
         HidePopPanel(&valueInputPanel);
         return;
       }
-
       if (IsInputFieldClicked(&valueInputPanel, mouseX, mouseY)) {
         valueInputPanel.inputField->active = true;
         return;
       }
-
       if (!IsInsideBox(valueInputPanel.position.x, valueInputPanel.position.y,
                        valueInputPanel.position.w, valueInputPanel.position.h,
                        mouseX, mouseY)) {
@@ -205,6 +227,7 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
         return;
       }
     }
+
     for (int i = 0; i < numOfButtons; i++) {
       if (buttons[i].isActive &&
           IsInsideBox(buttons[i].position.x, buttons[i].position.y,
@@ -215,8 +238,6 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
           panels[k]->isActive = 0;
           buttons[k].isCLicked = 0;
         }
-
-        // activate clicked panel
         buttons[i].isCLicked = 1;
         panels[i]->isActive = 1;
         *activePanel = i;
@@ -240,6 +261,17 @@ void HandleMouseInput(Res *resources, SDL_Event *event, struct Button *buttons,
             HandlePopPanelInput(&valueInputPanel, "Type here");
           }
 
+          if (j == 2 && *activePanel == 0) {
+            isTraversing = 1;
+            traverseIndex = 0;
+            traverseTimer = 0.0;
+            Node_v *temp = listHead;
+            while (temp != NULL) {
+              temp->isSelected = false;
+              temp = temp->next;
+            }
+          }
+
           PlayAudio(resources, 1);
         } else {
           panelButtons[*activePanel][j].isCLicked = 0;
@@ -259,9 +291,11 @@ void HandleKeyboardInput(Res *resources, SDL_Event *event,
                          struct InputField *inputField, char *inputBuffer,
                          int *inputPos) {
   SDL_Keycode key = event->key.keysym.sym;
+
   if (key == SDLK_BACKSLASH && listHead) {
     listHead->isMoving = true;
   }
+
   if (valueInputPanel.isActive && valueInputPanel.inputField &&
       valueInputPanel.inputField->active) {
     if (key >= SDLK_0 && key <= SDLK_9 && popupPos < 31) {
@@ -285,28 +319,26 @@ void HandleKeyboardInput(Res *resources, SDL_Event *event,
       popupBuffer[0] = '\0';
       HandlePopPanelInput(&valueInputPanel, "Type here");
       HidePopPanel(&valueInputPanel);
-
     } else if (key == SDLK_ESCAPE) {
       popupPos = 0;
       popupBuffer[0] = '\0';
       HandlePopPanelInput(&valueInputPanel, "Type here");
       HidePopPanel(&valueInputPanel);
     }
-    return;
   }
 }
 
 void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
                  struct Button panelButtons[][5], struct InputField *inputField,
                  Node_v *listHead, int activePanel) {
-  static const int numOfButtons = 3;
-  static const int panelButtonsCount[] = {5, 4, 3};
+  const int numOfButtons = 3;
+  const int panelButtonsCount[] = {5, 4, 3};
 
   SDL_SetRenderDrawColor(resources->renderer, 253, 240, 213, 0);
   SDL_RenderClear(resources->renderer);
   ScrollBg(resources, deltaTime, 0.1f);
   UpdateList(resources, listHead);
-  draw_arrow(resources->renderer, 50, 50, 400, 400, 8, 20, 0xFF0000FF);
+
   for (int i = 0; i < numOfButtons; i++) {
     if (buttons[i].isActive) {
       DrawButton(resources, &buttons[i]);
@@ -322,32 +354,27 @@ void RenderScene(Res *resources, struct Button *buttons, struct Panel **panels,
   }
 
   RenderPopPanel(resources, &valueInputPanel);
-
   SDL_RenderPresent(resources->renderer);
 }
 
 void CleanupAll(struct Button *buttons, struct Panel **panels,
                 struct Button panelButtons[][5], Node_v **listHead,
                 Res *resources) {
-  static const int numOfButtons = 3;
-  static const int panelButtonsCount[] = {5, 4, 3};
+  const int numOfButtons = 3;
+  const int panelButtonsCount[] = {5, 4, 3};
 
   for (int i = 0; i < numOfButtons; i++) {
     CleanUpButton(&buttons[i]);
-
     for (int j = 0; j < panelButtonsCount[i]; j++) {
       CleanUpButton(&panelButtons[i][j]);
     }
-
     if (panels[i]) {
       CleanupPanel(panels[i]);
       panels[i] = NULL;
     }
   }
 
-  // Free the linked list
   FreeNodesInfo(listHead);
-
   free(panels);
   CleanupProgram(resources);
 }

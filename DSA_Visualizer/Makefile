@@ -8,7 +8,7 @@ CFLAGS = -Wall -Wextra -g `sdl2-config --cflags`
 LDFLAGS = `sdl2-config --libs` -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lSDL2_gfx -lm
 
 # Source files
-SRCS = main.c list.c render.c
+SRCS = main.c list.c render.c buttons.c
 
 # Object files
 OBJS = $(SRCS:.c=.o)
